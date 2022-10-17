@@ -1,3 +1,6 @@
+help:
+	cat Makefile
+
 setup:
 	git submodule update --init --recursive
 	rm -rd ns3/scratch/ ns3/contrib/
