@@ -1,6 +1,8 @@
 help:
 	cat Makefile
 
+all: setup build
+
 setup:
 	git submodule update --init --recursive
 	rm -rd ns3/scratch/ ns3/contrib/
@@ -11,3 +13,6 @@ setup:
 build:
 	ns3/ns3 configure --enable-examples --enable-tests
 	ns3/ns3 build
+
+run:
+	ns3/ns3 run wdsr-sim
