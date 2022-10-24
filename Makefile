@@ -3,9 +3,9 @@ help:
 
 all: setup build
 
-setup: ns3
+setup: ns3/ns3
 
-ns3:
+ns3/ns3:
 	git submodule update --init --recursive
 	rm -rd ns3/scratch/ ns3/contrib/
 	ln -s $(shell pwd)/contrib ns3/
