@@ -1,7 +1,7 @@
 help:
 	cat Makefile
 
-all: setup build
+all: setup build netanim/NetAnim
 
 setup: ns3/ns3
 
@@ -18,9 +18,9 @@ build:
 run:
 	ns3/ns3 run wdsr-sim
 
+anim: netanim/NetAnim
+	netanim/NetAnim&
+
 netanim/NetAnim:
 	git submodule update --init --recursive
-	cd netanim
-	qmake NetAnim.pro
-	make
-	cd ..
+	cd netanim; qmake NetAnim.pro; make
