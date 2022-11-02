@@ -2,3 +2,7 @@
 	path = ns3
 	url = https://gitlab.com/nsnam/ns-3-dev.git
 	ignore = dirty
+[submodule "netanim"]
+	path = netanim
+	url = https://gitlab.com/nsnam/netanim.git
+	ignore = dirty

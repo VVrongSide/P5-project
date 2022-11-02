@@ -17,3 +17,10 @@ build:
 
 run:
 	ns3/ns3 run wdsr-sim
+
+netanim/NetAnim:
+	git submodule update --init --recursive
+	cd netanim
+	qmake NetAnim.pro
+	make
+	cd ..
