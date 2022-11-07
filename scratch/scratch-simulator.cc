@@ -15,16 +15,41 @@
  */
 
 #include "ns3/core-module.h"
+#include "ns3/netanim-module.h"
+#include "ns3/csma-module.h"
+#include "ns3/mobility-module.h"
+
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("ScratchSimulator");
+NS_LOG_COMPONENT_DEFINE("Random Placement");
 
 int
 main(int argc, char* argv[])
 {
-    NS_LOG_UNCOND("Scratch Simulator");
+    NS_LOG_UNCOND("Random placement");
+    uint32_t APs = 5;
+    NodeContainer apDevices;
+    apDevices.Create(APs);
 
+    CsmaHelper csma;
+    csma.SetChannelAttribute("DataRate", StringValue("100Mbps"));
+    csma.SetChannelAttribute("Delay", TimeValue(NanoSeconds(6560)));
+    csma.Install(apDevices);
+
+    RngSeedManager::SetSeed(3);
+    RngSeedManager::SetRun(1);
+    MobilityHelper mobility;
+    mobility.SetPositionAllocator ("ns3::RandomBoxPositionAllocator", 
+                                    "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=1000]"), 
+                                    "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=1000]"), 
+                                    "Z", StringValue("ns3::UniformRandomVariable[Min=0|Max=0]"));
+    mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+    mobility.Install(apDevices);
+    //mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel", "Bounds", RectangleValue(Rectangle(-50, 50, -25, 50)));
+
+    AnimationInterface anim("scratch-animation.xml");
+    Simulator::Stop(Seconds(2.0));
     Simulator::Run();
     Simulator::Destroy();
 
