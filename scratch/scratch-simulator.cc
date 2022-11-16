@@ -18,7 +18,7 @@
 #include "ns3/netanim-module.h"
 #include "ns3/csma-module.h"
 #include "ns3/mobility-module.h"
-
+#include "ns3/internet-module.h"
 
 using namespace ns3;
 
@@ -28,28 +28,47 @@ int
 main(int argc, char* argv[])
 {
     NS_LOG_UNCOND("Random placement");
+    
     uint32_t APs = 5;
     NodeContainer apDevices;
     apDevices.Create(APs);
 
+    //CSMA
     CsmaHelper csma;
     csma.SetChannelAttribute("DataRate", StringValue("100Mbps"));
     csma.SetChannelAttribute("Delay", TimeValue(NanoSeconds(6560)));
     csma.Install(apDevices);
 
-    RngSeedManager::SetSeed(3);
+    NetDeviceContainer csmaDevices;
+    csmaDevices = csma.Install(apDevices);
+
+    InternetStackHelper stack;
+    stack.Install(apDevices);
+
+    //Placement
+    RngSeedManager::SetSeed(1);
     RngSeedManager::SetRun(1);
     MobilityHelper mobility;
-    mobility.SetPositionAllocator ("ns3::RandomBoxPositionAllocator", 
+    mobility.SetPositionAllocator("ns3::RandomBoxPositionAllocator", 
                                     "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=1000]"), 
                                     "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=1000]"), 
                                     "Z", StringValue("ns3::UniformRandomVariable[Min=0|Max=0]"));
-    mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+    mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(apDevices);
-    //mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel", "Bounds", RectangleValue(Rectangle(-50, 50, -25, 50)));
 
+    Ipv4AddressHelper address;
+    address.SetBase("10.0.1.0", "255.255.255.0");
+    Ipv4InterfaceContainer apInterface;
+    apInterface = address.Assign(csmaDevices);
+
+    //Animation
     AnimationInterface anim("scratch-animation.xml");
-    Simulator::Stop(Seconds(2.0));
+    
+    for (uint32_t i = 0; i < apDevices.GetN(); ++i) {
+        anim.UpdateNodeDescription(apDevices.Get(i), "AP"); // Optional
+        anim.UpdateNodeColor(apDevices.Get(i), 0, 255, 0);  // Optional
+    }
+    //Simulator::Stop(Seconds(2.0));
     Simulator::Run();
     Simulator::Destroy();
 
