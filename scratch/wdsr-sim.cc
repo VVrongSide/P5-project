@@ -37,6 +37,7 @@
 #include "ns3/mobility-module.h"
 #include "ns3/network-module.h"
 #include "ns3/yans-wifi-helper.h"
+#include "ns3/netanim-module.h"
 
 #include <sstream>
 
@@ -77,18 +78,15 @@ main(int argc, char* argv[])
     NS_LOG_INFO("creating the nodes");
 
     // General parameters
-    uint32_t nWifis = 50;
+    uint32_t nWifis = 20;
     uint32_t nSinks = 10;
-    double TotalTime = 600.0;
-    double dataTime = 500.0;
+    double TotalTime = 100.0;
+    double dataTime = 90.0;
     double ppers = 1;
     uint32_t packetSize = 64;
-    double dataStart = 100.0; // start sending data at 100s
-
-    // mobility parameters
-    double pauseTime = 0.0;
-    double nodeSpeed = 20.0;
+    double dataStart = 10.0; // start sending data at 10s
     double txpDistance = 250.0;
+    uint32_t seed = 1;
 
     std::string rate = "0.512kbps";
     std::string dataMode("DsssRate11Mbps");
@@ -99,10 +97,9 @@ main(int argc, char* argv[])
     cmd.AddValue("nWifis", "Number of wifi nodes", nWifis);
     cmd.AddValue("nSinks", "Number of SINK traffic nodes", nSinks);
     cmd.AddValue("rate", "CBR traffic rate(in kbps), Default:8", rate);
-    cmd.AddValue("nodeSpeed", "Node speed in RandomWayPoint model, Default:20", nodeSpeed);
     cmd.AddValue("packetSize", "The packet size", packetSize);
     cmd.AddValue("txpDistance", "Specify node's transmit range, Default:300", txpDistance);
-    cmd.AddValue("pauseTime", "pauseTime for mobility model, Default: 0", pauseTime);
+    cmd.AddValue("seed", "Seed used for random placement, Default:1", seed);
     cmd.Parse(argc, argv);
 
     SeedManager::SetSeed(10);
@@ -116,8 +113,7 @@ main(int argc, char* argv[])
     Config::SetDefault("ns3::WifiRemoteStationManager::NonUnicastMode", StringValue(phyMode));
     Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue("2200"));
     // disable fragmentation for frames below 2200 bytes
-    Config::SetDefault("ns3::WifiRemoteStationManager::FragmentationThreshold",
-                       StringValue("2200"));
+    Config::SetDefault("ns3::WifiRemoteStationManager::FragmentationThreshold", StringValue("2200"));
 
     NS_LOG_INFO("setting the default phy and channel parameters ");
     WifiHelper wifi;
@@ -127,17 +123,14 @@ main(int argc, char* argv[])
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
     wifiChannel.AddPropagationLoss("ns3::RangePropagationLossModel",
-                                   "MaxRange",
-                                   DoubleValue(txpDistance));
+                                   "MaxRange", DoubleValue(txpDistance));
     wifiPhy.SetChannel(wifiChannel.Create());
 
     // Add a mac and disable rate control
     WifiMacHelper wifiMac;
     wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager",
-                                 "DataMode",
-                                 StringValue(dataMode),
-                                 "ControlMode",
-                                 StringValue(phyMode));
+                                 "DataMode", StringValue(dataMode),
+                                 "ControlMode", StringValue(phyMode));
 
     wifiMac.SetType("ns3::AdhocWifiMac");
     allDevices = wifi.Install(wifiPhy, wifiMac, adhocNodes);
@@ -147,33 +140,19 @@ main(int argc, char* argv[])
     AsciiTraceHelper ascii;
     Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream("wdsrtest.tr");
     wifiPhy.EnableAsciiAll(stream);
+    wifiPhy.EnablePcapAll("wdsr-sim");
 
-    MobilityHelper adhocMobility;
-    ObjectFactory pos;
-    pos.SetTypeId("ns3::RandomRectanglePositionAllocator");
-    pos.Set("X", StringValue("ns3::UniformRandomVariable[Min=0.0|Max=300.0]"));
-    pos.Set("Y", StringValue("ns3::UniformRandomVariable[Min=0.0|Max=1500.0]"));
-    Ptr<PositionAllocator> taPositionAlloc = pos.Create()->GetObject<PositionAllocator>();
-
-    std::ostringstream speedUniformRandomVariableStream;
-    speedUniformRandomVariableStream << "ns3::UniformRandomVariable[Min=0.0|Max=" << nodeSpeed
-                                     << "]";
-
-    std::ostringstream pauseConstantRandomVariableStream;
-    pauseConstantRandomVariableStream << "ns3::ConstantRandomVariable[Constant=" << pauseTime
-                                      << "]";
-
-    adhocMobility.SetMobilityModel(
-        "ns3::RandomWaypointMobilityModel",
-        //                                  "Speed", StringValue
-        //                                  ("ns3::UniformRandomVariable[Min=0.0|Max=nodeSpeed]"),
-        "Speed",
-        StringValue(speedUniformRandomVariableStream.str()),
-        "Pause",
-        StringValue(pauseConstantRandomVariableStream.str()),
-        "PositionAllocator",
-        PointerValue(taPositionAlloc));
-    adhocMobility.Install(adhocNodes);
+    /******* Placement *******/
+    RngSeedManager::SetSeed(seed);
+    RngSeedManager::SetRun(1);
+    MobilityHelper mobility;
+    mobility.SetPositionAllocator("ns3::RandomBoxPositionAllocator",
+                                    "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=750]"),
+                                    "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=750]"),
+                                    "Z", StringValue("ns3::UniformRandomVariable[Min=1.0|Max=2.0]"));
+    mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+    mobility.Install(adhocNodes);
+    /**************************/
 
     InternetStackHelper internet;
     WDsrMainHelper wdsrMain;
@@ -211,8 +190,20 @@ main(int argc, char* argv[])
         apps1.Stop(Seconds(dataTime + i * randomStartTime));
     }
 
+
     NS_LOG_INFO("Run Simulation.");
     Simulator::Stop(Seconds(TotalTime));
+    /******* Animation *******/
+    AnimationInterface anim("wdsr-sim.xml"); // Mandatory
+    anim.EnablePacketMetadata(); // Optional
+    anim.EnableWifiMacCounters(Seconds(0), Seconds(TotalTime)); // Optional
+    anim.EnableWifiPhyCounters(Seconds(0), Seconds(TotalTime)); // Optional
+    for (uint32_t i = 0; i < adhocNodes.GetN(); ++i) {
+        anim.UpdateNodeDescription(adhocNodes.Get(i), "Fuckers"); // Optional
+        anim.UpdateNodeColor(adhocNodes.Get(i), 0, 255, 0);  // Optional
+        anim.UpdateNodeSize(i, 10, 10);
+    }
+    /*************************/
     Simulator::Run();
     Simulator::Destroy();
 }
