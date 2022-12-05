@@ -38,6 +38,9 @@
 #include "ns3/network-module.h"
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/netanim-module.h"
+#include "ns3/wifi-radio-energy-model.h"
+#include "ns3/basic-energy-source.h"
+#include "ns3/simple-device-energy-model.h"
 
 #include <sstream>
 
@@ -152,6 +155,17 @@ main(int argc, char* argv[])
                                     "Z", StringValue("ns3::UniformRandomVariable[Min=1.0|Max=2.0]"));
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(adhocNodes);
+    /**************************/
+    /**************************/
+    Ptr<WifiRadioEnergyModel> energyModel = CreateObject<WifiRadioEnergyModel>();
+    Ptr<BasicEnergySource> energySource = CreateObject<BasicEnergySource>();
+
+    energySource->SetInitialEnergy(300);
+    energyModel->SetEnergySource(energySource);
+    energySource->AppendDeviceEnergyModel(energyModel);
+
+    // aggregate energy source to node
+    adhocNodes.Get(1)->AggregateObject(energySource);
     /**************************/
 
     InternetStackHelper internet;
