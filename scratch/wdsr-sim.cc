@@ -46,6 +46,17 @@
 
 using namespace ns3;
 
+int startplot = 0;
+void TotalEnergy (std::string context, double oldValue, double totalEnergy) {
+    std::ofstream myfile;
+    myfile.open("wdsr.txt", std::fstream::in | std::fstream::out | std::fstream::app);
+    if (startplot == std::stoi( context ))
+        myfile << std::endl << Simulator::Now().GetSeconds();
+    myfile << ", " << totalEnergy;
+    myfile.close();
+    //NS_LOG_UNCOND ("%INFO TimeStamp: "<<Simulator::Now ().GetSeconds ()<<" secs Total energy consumed Node: "<<context<<" "<<totalEnergy<< " Joules");
+}
+
 NS_LOG_COMPONENT_DEFINE("WDsrTest");
 
 int
@@ -156,17 +167,38 @@ main(int argc, char* argv[])
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(adhocNodes);
     /**************************/
-    /**************************/
     Ptr<WifiRadioEnergyModel> energyModel = CreateObject<WifiRadioEnergyModel>();
     Ptr<BasicEnergySource> energySource = CreateObject<BasicEnergySource>();
 
     energySource->SetInitialEnergy(300);
     energyModel->SetEnergySource(energySource);
     energySource->AppendDeviceEnergyModel(energyModel);
+    adhocNodes.Get(1)->AggregateObject(energySource); // aggregate energy source to node
 
-    // aggregate energy source to node
-    adhocNodes.Get(1)->AggregateObject(energySource);
-    /**************************/
+#if 0 //Change to 1 if you want 2 battery devices
+    Ptr<WifiRadioEnergyModel> energyModel2 = CreateObject<WifiRadioEnergyModel>();
+    Ptr<BasicEnergySource> energySource2 = CreateObject<BasicEnergySource>();
+    energySource2->SetInitialEnergy(200);
+    energyModel2->SetEnergySource(energySource2);
+    energySource2->AppendDeviceEnergyModel(energyModel2);
+    adhocNodes.Get(1)->AggregateObject(energySource2); // aggregate energy source to node
+#endif
+    /********* CSV generator energy node ********/
+    bool washere = 0;
+    std::ofstream myfile;
+    myfile.open("wdsr.txt", std::fstream::in | std::fstream::out | std::fstream::app);
+    for (uint32_t i = 0; i < adhocNodes.GetN(); ++i) {
+        Ptr<BasicEnergySource> NodeEnergySource = adhocNodes.Get(i)->GetObject<BasicEnergySource>();
+        if (NodeEnergySource != NULL) {
+            if (washere == 0) {startplot = i; washere =1; myfile << "Time";}
+            NodeEnergySource->TraceConnect("RemainingEnergy",
+                                            std::to_string(i),
+                                            MakeCallback(&TotalEnergy));
+            myfile << ", " << i;
+        }
+    }
+    myfile.close();
+    /********************************************/
 
     InternetStackHelper internet;
     WDsrMainHelper wdsrMain;
@@ -210,6 +242,10 @@ main(int argc, char* argv[])
     /******* Animation *******/
     AnimationInterface anim("wdsr-sim.xml"); // Mandatory
     anim.EnablePacketMetadata(); // Optional
+    anim.EnableIpv4RouteTracking("routingtable-wire.xml",
+                                Seconds(0),             //Start at 0
+                                Seconds(TotalTime),     //Run to totaltime
+                                Seconds(TotalTime/25)); //25 timesteps  
     anim.EnableWifiMacCounters(Seconds(0), Seconds(TotalTime)); // Optional
     anim.EnableWifiPhyCounters(Seconds(0), Seconds(TotalTime)); // Optional
     for (uint32_t i = 0; i < adhocNodes.GetN(); ++i) {
