@@ -70,7 +70,7 @@ main(int argc, char* argv[])
   LogComponentEnable ("Ipv4EndPointDemux", LOG_LEVEL_ALL);
 #endif
 
-#if 0
+#if 1
   LogComponentEnable ("WDsrOptions", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrHelper", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrRouting", LOG_LEVEL_ALL);
@@ -173,8 +173,18 @@ main(int argc, char* argv[])
     mobility.Install(adhocNodes);
     /**************************/
 
+<<<<<<< HEAD
 #if 1
     Ptr<BasicEnergySource> energySource1 = CreateObject<BasicEnergySource>();
+=======
+    energySource->SetInitialEnergy(300);
+    energyModel->SetEnergySource(energySource);
+    energySource->AppendDeviceEnergyModel(energyModel);
+    adhocNodes.Get(0)->AggregateObject(energySource); // aggregate energy source to node
+
+#if 1 //Change to 1 if you want 2 battery devices
+    Ptr<WifiRadioEnergyModel> energyModel2 = CreateObject<WifiRadioEnergyModel>();
+>>>>>>> d8cc7d2 (Found a way modify RREP packets, currently working on RREQ)
     Ptr<BasicEnergySource> energySource2 = CreateObject<BasicEnergySource>();
     WifiRadioEnergyModelHelper energyHelper;
 
