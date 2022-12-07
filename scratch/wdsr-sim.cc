@@ -43,6 +43,7 @@
 #include "ns3/simple-device-energy-model.h"
 #include "ns3/stats-module.h"
 #include <sstream>
+#include "ns3/wifi-radio-energy-model-helper.h"
 
 using namespace ns3;
 
@@ -89,10 +90,10 @@ main(int argc, char* argv[])
     // General parameters
     uint32_t nWifis = 20;
     uint32_t nSinks = 10;
-    double TotalTime = 1000.0;
-    double dataTime = 90.0;
+    double TotalTime = 200.0;
+    double dataTime = 190.0;
     double ppers = 1;
-    uint32_t packetSize = 64;
+    uint32_t packetSize = 1024;
     double dataStart = 10.0; // start sending data at 10s
     double txpDistance = 250.0;
     uint32_t seed = 1;
@@ -171,22 +172,31 @@ main(int argc, char* argv[])
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(adhocNodes);
     /**************************/
-    Ptr<WifiRadioEnergyModel> energyModel = CreateObject<WifiRadioEnergyModel>();
-    Ptr<BasicEnergySource> energySource = CreateObject<BasicEnergySource>();
 
-    energySource->SetInitialEnergy(150);
-    energyModel->SetEnergySource(energySource);
-    energySource->AppendDeviceEnergyModel(energyModel);
-    adhocNodes.Get(0)->AggregateObject(energySource); // aggregate energy source to node
-
-#if 0 //Change to 1 if you want 2 battery devices
-    Ptr<WifiRadioEnergyModel> energyModel2 = CreateObject<WifiRadioEnergyModel>();
+#if 1
+    Ptr<BasicEnergySource> energySource1 = CreateObject<BasicEnergySource>();
     Ptr<BasicEnergySource> energySource2 = CreateObject<BasicEnergySource>();
-    energySource2->SetInitialEnergy(200);
-    energyModel2->SetEnergySource(energySource2);
-    energySource2->AppendDeviceEnergyModel(energyModel2);
-    adhocNodes.Get(1)->AggregateObject(energySource2); // aggregate energy source to node
+    WifiRadioEnergyModelHelper energyHelper;
+
+
+    energySource1->SetInitialEnergy(3000);
+    energySource1->SetNode(adhocNodes.Get(0));
+    energySource2->SetInitialEnergy(2000);
+    energySource2->SetNode(adhocNodes.Get(1));
+
+
+    DeviceEnergyModelContainer deviceModel1 = energyHelper.Install(allDevices.Get(0), energySource1);
+    DeviceEnergyModelContainer deviceModel2 = energyHelper.Install(allDevices.Get(1), energySource2);
+
+
+
+    adhocNodes.Get(0)->AggregateObject(energySource1);
+    adhocNodes.Get(1)->AggregateObject(energySource2);
 #endif
+
+
+
+
     /********* CSV generator energy node ********/
     for (uint32_t i = 0; i < adhocNodes.GetN(); ++i) {
         Ptr<BasicEnergySource> NodeEnergySource = adhocNodes.Get(i)->GetObject<BasicEnergySource>();
