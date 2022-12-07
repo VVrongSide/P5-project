@@ -499,6 +499,16 @@ class WDsrOptionRrepHeader : public WDsrOptionHeader
      */
     Ipv4Address GetNodeAddress(uint8_t index) const;
     /**
+     * \brief Set the 1 reserved field to lowestBat
+     * \param the lowest battery in the route
+     */
+    void SetLowestBat(uint8_t lowestBat);
+    /**
+     * \brief Get the lowestBat from the first field
+     * \return the lowest battery in the route
+     */
+    uint8_t GetLowestBat() const;
+    /**
      * \brief Print some information about the packet.
      * \param os output stream
      */
@@ -538,6 +548,10 @@ class WDsrOptionRrepHeader : public WDsrOptionHeader
      * \brief The vector of Nodes' IPv4 Address.
      */
     VectorIpv4Address_t m_ipv4Address;
+    /**
+    * \brief The option lowestBat.
+    */
+    uint8_t m_lowestBat;
 };
 
 /**

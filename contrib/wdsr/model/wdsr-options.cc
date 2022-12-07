@@ -58,6 +58,9 @@
 #include "ns3/trace-source-accessor.h"
 #include "ns3/udp-header.h"
 #include "ns3/uinteger.h"
+#include "ns3/wifi-radio-energy-model.h"
+#include "ns3/basic-energy-source.h"
+#include "ns3/simple-device-energy-model.h"
 
 #include <ctime>
 #include <list>
@@ -733,9 +736,30 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
             uint8_t length =
                 rrep.GetLength(); // Get the length of the rrep header excluding the type header
+            uint8_t lowestBat =
+                rrep.GetLowestBat(); // Get the length of the rrep header excluding the type header
             wdsrRoutingHeader.SetPayloadLength(length + 2);
+            NS_LOG_DEBUG("**************************************");
+            Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>();
+            if (nodeEnergySource != 0){ 
+                NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is remaining battery: "<<nodeEnergySource->GetRemainingEnergy()<<" Joules");
+
+                uint8_t batPct = (nodeEnergySource->GetRemainingEnergy()/300.0)*0x7f; // 0x7f er 128, benjamin er tosset
+                NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is remaining battery: "<<(int)batPct<<"/128 parts");
+                if (lowestBat>batPct){
+                    NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is when lowestBat > batPct | "<<(int)lowestBat<<" > "<<(int)batPct);
+                    rrep.SetLowestBat(batPct);
+                }
+            } else {
+                NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: No battery implemented yet");
+            }
+            NS_LOG_DEBUG("**************************************");
             wdsrRoutingHeader.AddWDsrOption(rrep);
+            NS_LOG_DEBUG("****************************************************************************");
+            NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREP");
             Ptr<Packet> newPacket = Create<Packet>();
+            NS_LOG_DEBUG("****************************************************************************");
+
             newPacket->AddHeader(wdsrRoutingHeader);
             wdsr->ScheduleInitialReply(newPacket, ipv4Address, nextHop, m_ipv4Route);
             /*
@@ -952,7 +976,24 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
             uint8_t length =
                 rrep.GetLength(); // Get the length of the rrep header excluding the type header
+            uint8_t lowestBat =
+                rrep.GetLowestBat(); // Get the length of the rrep header excluding the type header
             wdsrRoutingHeader.SetPayloadLength(length + 2);
+            NS_LOG_DEBUG("**************************************");
+            Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>();
+            if (nodeEnergySource != 0){ 
+                NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is remaining battery: "<<nodeEnergySource->GetRemainingEnergy()<<" Joules");
+
+                uint8_t batPct = (nodeEnergySource->GetRemainingEnergy()/300.0)*0x7f; // 0x7f er 128, benjamin er tosset
+                NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is remaining battery: "<<(int)batPct<<"/128 parts");
+                if (lowestBat>batPct){
+                    NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is when lowestBat > batPct | "<<(int)lowestBat<<" > "<<(int)batPct);
+                    rrep.SetLowestBat(batPct);
+                }
+            } else {
+                NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: No battery implemented yet");
+            }
+            NS_LOG_DEBUG("**************************************");
             wdsrRoutingHeader.AddWDsrOption(rrep);
             Ptr<Packet> newPacket = Create<Packet>();
             newPacket->AddHeader(wdsrRoutingHeader);
@@ -1095,12 +1136,14 @@ WDsrOptionRrep::Process(Ptr<Packet> packet,
 
     WDsrOptionRrepHeader rrep;
     rrep.SetNumberAddress(numberAddress); // Set the number of ip address in the header to reserver
-                                          // space for deserialize header
-    p->RemoveHeader(rrep);
-
     Ptr<Node> node = GetNodeWithAddress(ipv4Address);
+    NS_LOG_DEBUG("****************************************************************************");
+    NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Deserialization of RREP");                                
+    p->RemoveHeader(rrep);  // space for deserialize header
+    NS_LOG_DEBUG("****************************************************************************");
+    
     Ptr<wdsr::WDsrRouting> wdsr = node->GetObject<wdsr::WDsrRouting>();
-
+    
     NS_LOG_DEBUG("The next header value " << (uint32_t)protocol);
 
     std::vector<Ipv4Address> nodeList = rrep.GetNodesAddress();

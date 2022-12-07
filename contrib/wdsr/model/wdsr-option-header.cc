@@ -396,6 +396,10 @@ WDsrOptionRreqHeader::Serialize(Buffer::Iterator start) const
 
     i.WriteU8(GetType());
     i.WriteU8(GetLength());
+    NS_LOG_DEBUG("****************************************************************************");
+    NS_LOG_DEBUG(">>>>>>> Serialization of RREQ");
+    NS_LOG_DEBUG(">>>>>>> Data inside m_identification: "<<(int)m_identification);
+    NS_LOG_DEBUG("****************************************************************************");
     i.WriteHtonU16(m_identification);
     WriteTo(i, m_target);
 
@@ -461,6 +465,7 @@ WDsrOptionRrepHeader::WDsrOptionRrepHeader()
 {
     SetType(2);
     SetLength(2 + m_ipv4Address.size() * 4);
+    SetLowestBat(0x7f);
 }
 
 WDsrOptionRrepHeader::~WDsrOptionRrepHeader()
@@ -506,6 +511,18 @@ WDsrOptionRrepHeader::GetTargetAddress(std::vector<Ipv4Address> ipv4Address) con
 }
 
 void
+WDsrOptionRrepHeader::SetLowestBat(uint8_t lowestBat)
+{
+    m_lowestBat = lowestBat;
+}
+
+uint8_t
+WDsrOptionRrepHeader::GetLowestBat() const
+{
+    return m_lowestBat;
+}
+
+void
 WDsrOptionRrepHeader::Print(std::ostream& os) const
 {
     os << "( type = " << (uint32_t)GetType() << " length = " << (uint32_t)GetLength() << "";
@@ -534,8 +551,10 @@ WDsrOptionRrepHeader::Serialize(Buffer::Iterator start) const
 
     i.WriteU8(GetType());
     i.WriteU8(GetLength());
-    i.WriteU8(0);
-    i.WriteU8(0);
+
+    NS_LOG_DEBUG(">>>>> Serialize: This is m_lowestBat before Serialize: "<<(int)GetLowestBat());
+    i.WriteU8(GetLowestBat());
+    i.WriteU8(0x7e);
 
     for (VectorIpv4Address_t::const_iterator it = m_ipv4Address.begin(); it != m_ipv4Address.end();
          it++)
@@ -553,7 +572,9 @@ WDsrOptionRrepHeader::Deserialize(Buffer::Iterator start)
 
     SetType(i.ReadU8());
     SetLength(i.ReadU8());
-    i.ReadU8();
+    NS_LOG_DEBUG(">>>>> Deserialize: This is m_lowestBat before Deserialize: "<<(int)GetLowestBat());
+    SetLowestBat(i.ReadU8());
+    NS_LOG_DEBUG(">>>>> Deserialize: This is m_lowestBat after Deserialize: "<<(int)GetLowestBat());
     i.ReadU8();
 
     uint8_t index = 0;
