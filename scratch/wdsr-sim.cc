@@ -41,19 +41,14 @@
 #include "ns3/wifi-radio-energy-model.h"
 #include "ns3/basic-energy-source.h"
 #include "ns3/simple-device-energy-model.h"
-
+#include "ns3/stats-module.h"
 #include <sstream>
 
 using namespace ns3;
 
-int startplot = 0;
+Ptr<GnuplotAggregator> aggregator;
 void TotalEnergy (std::string context, double oldValue, double totalEnergy) {
-    std::ofstream myfile;
-    myfile.open("wdsr.txt", std::fstream::in | std::fstream::out | std::fstream::app);
-    if (startplot == std::stoi( context ))
-        myfile << std::endl << Simulator::Now().GetSeconds();
-    myfile << ", " << totalEnergy;
-    myfile.close();
+    aggregator->Write2d(context, Simulator::Now().GetSeconds(), totalEnergy);
     //NS_LOG_UNCOND ("%INFO TimeStamp: "<<Simulator::Now ().GetSeconds ()<<" secs Total energy consumed Node: "<<context<<" "<<totalEnergy<< " Joules");
 }
 
@@ -94,7 +89,7 @@ main(int argc, char* argv[])
     // General parameters
     uint32_t nWifis = 20;
     uint32_t nSinks = 10;
-    double TotalTime = 100.0;
+    double TotalTime = 1000.0;
     double dataTime = 90.0;
     double ppers = 1;
     uint32_t packetSize = 64;
@@ -116,9 +111,18 @@ main(int argc, char* argv[])
     cmd.AddValue("seed", "Seed used for random placement, Default:1", seed);
     cmd.Parse(argc, argv);
 
+    /********* Gnuplot ***********/
+    std::string plotXAxisHeading = "Time (seconds)";
+    std::string plotYAxisHeading = "Energy";
+    aggregator = CreateObject<GnuplotAggregator>("Wdsr-plot");
+        // Set the aggregator's properties.
+    aggregator->SetTerminal("png");
+    aggregator->SetTitle("Energy remaining");
+    aggregator->SetLegend(plotXAxisHeading, plotYAxisHeading);
+    /******************************/
+
     SeedManager::SetSeed(10);
     SeedManager::SetRun(1);
-
     NodeContainer adhocNodes;
     adhocNodes.Create(nWifis);
     NetDeviceContainer allDevices;
@@ -170,10 +174,10 @@ main(int argc, char* argv[])
     Ptr<WifiRadioEnergyModel> energyModel = CreateObject<WifiRadioEnergyModel>();
     Ptr<BasicEnergySource> energySource = CreateObject<BasicEnergySource>();
 
-    energySource->SetInitialEnergy(300);
+    energySource->SetInitialEnergy(150);
     energyModel->SetEnergySource(energySource);
     energySource->AppendDeviceEnergyModel(energyModel);
-    adhocNodes.Get(1)->AggregateObject(energySource); // aggregate energy source to node
+    adhocNodes.Get(0)->AggregateObject(energySource); // aggregate energy source to node
 
 #if 0 //Change to 1 if you want 2 battery devices
     Ptr<WifiRadioEnergyModel> energyModel2 = CreateObject<WifiRadioEnergyModel>();
@@ -184,21 +188,18 @@ main(int argc, char* argv[])
     adhocNodes.Get(1)->AggregateObject(energySource2); // aggregate energy source to node
 #endif
     /********* CSV generator energy node ********/
-    bool washere = 0;
-    std::ofstream myfile;
-    myfile.open("wdsr.txt", std::fstream::in | std::fstream::out | std::fstream::app);
     for (uint32_t i = 0; i < adhocNodes.GetN(); ++i) {
         Ptr<BasicEnergySource> NodeEnergySource = adhocNodes.Get(i)->GetObject<BasicEnergySource>();
         if (NodeEnergySource != NULL) {
-            if (washere == 0) {startplot = i; washere =1; myfile << "Time";}
+            std::string context = std::to_string(i);
             NodeEnergySource->TraceConnect("RemainingEnergy",
-                                            std::to_string(i),
+                                            context,
                                             MakeCallback(&TotalEnergy));
-            myfile << ", " << i;
+            aggregator->Add2dDataset(context, std::string("Node: ") + context);
         }
     }
-    myfile.close();
-    /********************************************/
+    aggregator->Enable();
+        /********************************************/
 
     InternetStackHelper internet;
     WDsrMainHelper wdsrMain;
