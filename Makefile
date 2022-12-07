@@ -26,6 +26,5 @@ netanim/NetAnim:
 	cd netanim; qmake NetAnim.pro; make
 
 plot:
-	echo "" > ns3/wdsr.txt
 	ns3/ns3 run wdsr-sim
-	printf "\nset datafile separator ','\nset key autotitle columnhead\nplot 'ns3/wdsr.txt' using 1:2 with lines, '' using 1:3 with lines\n" | gnuplot --persist
+	cd ns3;./Wdsr-plot.sh && xdg-open Wdsr-plot.png; cd ..
