@@ -173,7 +173,6 @@ main(int argc, char* argv[])
     mobility.Install(adhocNodes);
     /**************************/
 
-<<<<<<< HEAD
 #if 1
     Ptr<BasicEnergySource> energySource1 = CreateObject<BasicEnergySource>();
     Ptr<BasicEnergySource> energySource2 = CreateObject<BasicEnergySource>();
