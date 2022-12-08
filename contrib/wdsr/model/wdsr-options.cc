@@ -599,7 +599,10 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
      */
     rreq.SetNumberAddress(numberAddress);
     // Remove the route request header
-    p->RemoveHeader(rreq);
+    NS_LOG_DEBUG("****************************************************************************");
+    NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Deserialization of RREQ");                                
+    p->RemoveHeader(rreq);  // space for deserialize header
+    NS_LOG_DEBUG("****************************************************************************");
     // Verify the option length
     uint8_t length = rreq.GetLength();
     if (length % 2 != 0)

@@ -349,9 +349,30 @@ class WDsrOptionRreqHeader : public WDsrOptionHeader
      */
     uint16_t GetId() const;
     /**
+     * \brief Set the 1 reserved field to txCost
+     * \param the total transmission cost of the route
+     */
+    void SetTxCost(uint8_t txCost);
+    /**
+     * \brief Get the txCost from the first field
+     * \return set the total transmission cost
+     */
+    uint8_t GetTxCost() const;
+    /**
+     * \brief Set the 1 reserved field to lowestBat
+     * \param the lowest battery in the route
+     */
+    void SetLowestBat(uint8_t lowestBat);
+    /**
+     * \brief Get the lowestBat from the first field
+     * \return the lowest battery in the route
+     */
+    uint8_t GetLowestBat() const;
+    /**
      * \brief Print some information about the packet.
      * \param os output stream
      */
+
     void Print(std::ostream& os) const override;
     /**
      * \brief Get the serialized size of the packet.
@@ -396,6 +417,15 @@ class WDsrOptionRreqHeader : public WDsrOptionHeader
      * \brief The vector of Nodes' IPv4 Address.
      */
     VectorIpv4Address_t m_ipv4Address;
+    /**
+    * \brief The total transmission cost of the route
+    */
+    uint8_t m_txCost;
+     /**
+    * \brief The option lowestBat.
+    */
+    uint8_t m_lowestBat;
+
 };
 
 /**
@@ -499,6 +529,16 @@ class WDsrOptionRrepHeader : public WDsrOptionHeader
      */
     Ipv4Address GetNodeAddress(uint8_t index) const;
     /**
+     * \brief Set the 1 reserved field to txCost
+     * \param the total transmission cost of the route
+     */
+    void SetTxCost(uint8_t txCost);
+    /**
+     * \brief Get the txCost from the first field
+     * \return set the total transmission cost
+     */
+    uint8_t GetTxCost() const;
+    /**
      * \brief Set the 1 reserved field to lowestBat
      * \param the lowest battery in the route
      */
@@ -548,6 +588,10 @@ class WDsrOptionRrepHeader : public WDsrOptionHeader
      * \brief The vector of Nodes' IPv4 Address.
      */
     VectorIpv4Address_t m_ipv4Address;
+    /**
+    * \brief The total transmission cost of the route
+    */
+    uint8_t m_txCost;
     /**
     * \brief The option lowestBat.
     */

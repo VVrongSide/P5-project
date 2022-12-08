@@ -292,6 +292,8 @@ WDsrOptionRreqHeader::WDsrOptionRreqHeader()
 {
     SetType(1);
     SetLength(6 + m_ipv4Address.size() * 4);
+    SetLowestBat(0x7f);
+    SetTxCost(0xff);
 }
 
 WDsrOptionRreqHeader::~WDsrOptionRreqHeader()
@@ -368,6 +370,30 @@ WDsrOptionRreqHeader::GetId() const
 }
 
 void
+WDsrOptionRreqHeader::SetTxCost(uint8_t txCost)
+{
+    m_txCost = txCost;
+}
+
+uint8_t
+WDsrOptionRreqHeader::GetTxCost() const
+{
+    return m_txCost;
+}
+
+void
+WDsrOptionRreqHeader::SetLowestBat(uint8_t lowestBat)
+{
+    m_lowestBat = lowestBat;
+}
+
+uint8_t
+WDsrOptionRreqHeader::GetLowestBat() const
+{
+    return m_lowestBat;
+}
+
+void
 WDsrOptionRreqHeader::Print(std::ostream& os) const
 {
     os << "( type = " << (uint32_t)GetType() << " length = " << (uint32_t)GetLength() << "";
@@ -399,6 +425,8 @@ WDsrOptionRreqHeader::Serialize(Buffer::Iterator start) const
     NS_LOG_DEBUG("****************************************************************************");
     NS_LOG_DEBUG(">>>>>>> Serialization of RREQ");
     NS_LOG_DEBUG(">>>>>>> Data inside m_identification: "<<(int)m_identification);
+    NS_LOG_DEBUG(">>>>>>> Data inside m_lowestBat: "<<(int)m_lowestBat);
+    NS_LOG_DEBUG(">>>>>>> Data inside m_txCost: "<<(int)m_txCost);
     NS_LOG_DEBUG("****************************************************************************");
     i.WriteHtonU16(m_identification);
     WriteTo(i, m_target);
@@ -419,7 +447,13 @@ WDsrOptionRreqHeader::Deserialize(Buffer::Iterator start)
 
     SetType(i.ReadU8());
     SetLength(i.ReadU8());
+    NS_LOG_DEBUG("****************************************************************************");
+    NS_LOG_DEBUG(">>>>>>> Deserialization of RREQ");
     m_identification = i.ReadNtohU16();
+    NS_LOG_DEBUG(">>>>>>> Data inside m_identification: "<<(int)m_identification);
+    NS_LOG_DEBUG(">>>>>>> Data inside m_lowestBat: "<<(int)m_lowestBat);
+    NS_LOG_DEBUG(">>>>>>> Data inside m_txCost: "<<(int)m_txCost);
+    NS_LOG_DEBUG("****************************************************************************");
     ReadFrom(i, m_target);
 
     uint8_t index = 0;
@@ -466,6 +500,7 @@ WDsrOptionRrepHeader::WDsrOptionRrepHeader()
     SetType(2);
     SetLength(2 + m_ipv4Address.size() * 4);
     SetLowestBat(0x7f);
+    SetTxCost(0xff);
 }
 
 WDsrOptionRrepHeader::~WDsrOptionRrepHeader()
@@ -508,6 +543,18 @@ Ipv4Address
 WDsrOptionRrepHeader::GetTargetAddress(std::vector<Ipv4Address> ipv4Address) const
 {
     return m_ipv4Address.at(ipv4Address.size() - 1);
+}
+
+void
+WDsrOptionRrepHeader::SetTxCost(uint8_t txCost)
+{
+    m_txCost = txCost;
+}
+
+uint8_t
+WDsrOptionRrepHeader::GetTxCost() const
+{
+    return m_txCost;
 }
 
 void
