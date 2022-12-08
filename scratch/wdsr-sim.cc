@@ -70,7 +70,7 @@ main(int argc, char* argv[])
   LogComponentEnable ("Ipv4EndPointDemux", LOG_LEVEL_ALL);
 #endif
 
-#if 1
+#if 0
   LogComponentEnable ("WDsrOptions", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrHelper", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrRouting", LOG_LEVEL_ALL);
@@ -96,6 +96,7 @@ main(int argc, char* argv[])
     uint32_t packetSize = 1024;
     double dataStart = 10.0; // start sending data at 10s
     double txpDistance = 250.0;
+    double initialJoules = 300;
     uint32_t seed = 1;
 
     std::string rate = "0.512kbps";
@@ -174,24 +175,18 @@ main(int argc, char* argv[])
     /**************************/
 
 #if 1
-    Ptr<BasicEnergySource> energySource1 = CreateObject<BasicEnergySource>();
-    Ptr<BasicEnergySource> energySource2 = CreateObject<BasicEnergySource>();
+    Ptr<BasicEnergySource> energySources[adhocNodes.GetN()];
+    DeviceEnergyModelContainer deviceModels[adhocNodes.GetN()];
     WifiRadioEnergyModelHelper energyHelper;
 
+    for (uint32_t i = 0; i < adhocNodes.GetN();i++){
+        energySources[i] = CreateObject<BasicEnergySource>();
+        energySources[i]->SetInitialEnergy(initialJoules);
 
-    energySource1->SetInitialEnergy(3000);
-    energySource1->SetNode(adhocNodes.Get(0));
-    energySource2->SetInitialEnergy(2000);
-    energySource2->SetNode(adhocNodes.Get(1));
-
-
-    DeviceEnergyModelContainer deviceModel1 = energyHelper.Install(allDevices.Get(0), energySource1);
-    DeviceEnergyModelContainer deviceModel2 = energyHelper.Install(allDevices.Get(1), energySource2);
-
-
-
-    adhocNodes.Get(0)->AggregateObject(energySource1);
-    adhocNodes.Get(1)->AggregateObject(energySource2);
+        energySources[i]->SetNode(adhocNodes.Get(i));
+        deviceModels[i] = energyHelper.Install(allDevices.Get(i), energySources[i]);
+        adhocNodes.Get(i)->AggregateObject(energySources[i]);
+    }
 #endif
 
 
