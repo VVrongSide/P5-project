@@ -70,7 +70,7 @@ main(int argc, char* argv[])
   LogComponentEnable ("Ipv4EndPointDemux", LOG_LEVEL_ALL);
 #endif
 
-#if 0
+#if 1
   LogComponentEnable ("WDsrOptions", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrHelper", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrRouting", LOG_LEVEL_ALL);
@@ -178,6 +178,8 @@ main(int argc, char* argv[])
     Ptr<BasicEnergySource> energySources[adhocNodes.GetN()];
     DeviceEnergyModelContainer deviceModels[adhocNodes.GetN()];
     WifiRadioEnergyModelHelper energyHelper;
+    energyHelper.Set("IdleCurrentA", DoubleValue(0.00001));
+    energyHelper.Set("TxCurrentA", DoubleValue(0.5));
 
     for (uint32_t i = 0; i < adhocNodes.GetN();i++){
         energySources[i] = CreateObject<BasicEnergySource>();

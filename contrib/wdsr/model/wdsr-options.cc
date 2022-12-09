@@ -76,6 +76,11 @@ namespace wdsr
 
 NS_OBJECT_ENSURE_REGISTERED(WDsrOptions);
 
+/*
+* \brief The max capacity for all node batteries
+*/
+double initialJoules = 3000;
+
 TypeId
 WDsrOptions::GetTypeId()
 {
@@ -747,8 +752,8 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             if (nodeEnergySource != 0){ 
                 NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is remaining battery: "<<nodeEnergySource->GetRemainingEnergy()<<" Joules");
 
-                uint8_t batPct = (nodeEnergySource->GetRemainingEnergy()/300.0)*0x7f; // 0x7f er 128, benjamin er tosset
-                NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is remaining battery: "<<(int)batPct<<"/128 parts");
+                uint8_t batPct = (nodeEnergySource->GetRemainingEnergy()/initialJoules)*0x7f; // 0x7f er 128, benjamin er tosset
+                NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is remaining battery: "<<(int)batPct<<"/127 parts");
                 if (lowestBat>batPct){
                     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is when lowestBat > batPct | "<<(int)lowestBat<<" > "<<(int)batPct);
                     rrep.SetLowestBat(batPct);
@@ -757,11 +762,12 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                 NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: No battery implemented yet");
             }
             NS_LOG_DEBUG("**************************************");
-            wdsrRoutingHeader.AddWDsrOption(rrep);
             NS_LOG_DEBUG("****************************************************************************");
             NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREP");
-            Ptr<Packet> newPacket = Create<Packet>();
+            wdsrRoutingHeader.AddWDsrOption(rrep);
             NS_LOG_DEBUG("****************************************************************************");
+
+            Ptr<Packet> newPacket = Create<Packet>();
 
             newPacket->AddHeader(wdsrRoutingHeader);
             wdsr->ScheduleInitialReply(newPacket, ipv4Address, nextHop, m_ipv4Route);
@@ -987,8 +993,8 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             if (nodeEnergySource != 0){ 
                 NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is remaining battery: "<<nodeEnergySource->GetRemainingEnergy()<<" Joules");
 
-                uint8_t batPct = (nodeEnergySource->GetRemainingEnergy()/300.0)*0x7f; // 0x7f er 128, benjamin er tosset
-                NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is remaining battery: "<<(int)batPct<<"/128 parts");
+                uint8_t batPct = (nodeEnergySource->GetRemainingEnergy()/initialJoules)*0x7f; // 0x7f er 128, benjamin er tosset
+                NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is remaining battery: "<<(int)batPct<<"/127 parts");
                 if (lowestBat>batPct){
                     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: This is when lowestBat > batPct | "<<(int)lowestBat<<" > "<<(int)batPct);
                     rrep.SetLowestBat(batPct);
@@ -997,8 +1003,13 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                 NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREPTEST: No battery implemented yet");
             }
             NS_LOG_DEBUG("**************************************");
+            NS_LOG_DEBUG("****************************************************************************");
+            NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREP");
             wdsrRoutingHeader.AddWDsrOption(rrep);
+            NS_LOG_DEBUG("****************************************************************************");
             Ptr<Packet> newPacket = Create<Packet>();
+            
+            
             newPacket->AddHeader(wdsrRoutingHeader);
             wdsr->ScheduleCachedReply(newPacket, ipv4Address, nextHop, m_ipv4Route, hops);
             isPromisc = false;
@@ -1029,8 +1040,27 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                 {
                     NS_LOG_DEBUG("The error link back to work again");
                     uint16_t length = rreq.GetLength();
+                    uint8_t lowestBat = rreq.GetLowestBat(); // Get the length of the rreq header excluding the type header
                     NS_LOG_DEBUG("The RREQ header length " << length);
+                    NS_LOG_DEBUG("**************************************");
+                    Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>();
+                    if (nodeEnergySource != 0){ 
+                        NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREQTEST: This is remaining battery: "<<nodeEnergySource->GetRemainingEnergy()<<" Joules");
+
+                        uint8_t batPct = (nodeEnergySource->GetRemainingEnergy()/initialJoules)*0x7f; // 0x7f er 128, benjamin er tosset
+                        NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREQTEST: This is remaining battery: "<<(int)batPct<<"/127 parts");
+                        if (lowestBat>batPct){
+                            NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREQTEST: This is when lowestBat > batPct | "<<(int)lowestBat<<" > "<<(int)batPct);
+                            rreq.SetLowestBat(batPct);
+                        }
+                    } else {
+                        NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREQTEST: No battery implemented yet");
+                    }
+                    NS_LOG_DEBUG("**************************************");
+                    NS_LOG_DEBUG("****************************************************************************");
+                    NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREQ");
                     wdsrRoutingHeader.AddWDsrOption(rreq);
+                    NS_LOG_DEBUG("****************************************************************************");
                     wdsrRoutingHeader.SetPayloadLength(length + 2);
                 }
                 else
@@ -1045,17 +1075,57 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                     newUnreach.SetSalvage(rerr.GetSalvage()); // Set the value about whether to
                                                               // salvage a packet or not
                     uint16_t length = rreq.GetLength() + newUnreach.GetLength();
+                    uint8_t lowestBat = rreq.GetLowestBat(); // Get the length of the rrep header excluding the type header
                     NS_LOG_DEBUG("The RREQ and newUnreach header length " << length);
                     wdsrRoutingHeader.SetPayloadLength(length + 4);
+                    NS_LOG_DEBUG("**************************************");
+                    Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>();
+                    if (nodeEnergySource != 0){ 
+                        NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREQTEST: This is remaining battery: "<<nodeEnergySource->GetRemainingEnergy()<<" Joules");
+
+                        uint8_t batPct = (nodeEnergySource->GetRemainingEnergy()/initialJoules)*0x7f; // 0x7f er 128, benjamin er tosset
+                        NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREQTEST: This is remaining battery: "<<(int)batPct<<"/127 parts");
+                        if (lowestBat>batPct){
+                            NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREQTEST: This is when lowestBat > batPct | "<<(int)lowestBat<<" > "<<(int)batPct);
+                            rreq.SetLowestBat(batPct);
+                        }
+                    } else {
+                        NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREQTEST: No battery implemented yet");
+                    }
+                    NS_LOG_DEBUG("**************************************");
+                    NS_LOG_DEBUG("****************************************************************************");
+                    NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREQ");
                     wdsrRoutingHeader.AddWDsrOption(rreq);
+                    NS_LOG_DEBUG("****************************************************************************");
+
                     wdsrRoutingHeader.AddWDsrOption(newUnreach);
                 }
             }
             else
             {
                 uint16_t length = rreq.GetLength();
+                uint8_t lowestBat = rreq.GetLowestBat(); // Get the length of the rrep header excluding the type header
                 NS_LOG_DEBUG("The RREQ header length " << length);
+                NS_LOG_DEBUG("**************************************");
+                Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>();
+                if (nodeEnergySource != 0){ 
+                    NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREQTEST: This is remaining battery: "<<nodeEnergySource->GetRemainingEnergy()<<" Joules");
+
+                    uint8_t batPct = (nodeEnergySource->GetRemainingEnergy()/initialJoules)*0x7f; // 0x7f er 128, benjamin er tosset
+                    NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREQTEST: This is remaining battery: "<<(int)batPct<<"/127 parts");
+                    if (lowestBat>batPct){
+                        NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREQTEST: This is when lowestBat > batPct | "<<(int)lowestBat<<" > "<<(int)batPct);
+                        rreq.SetLowestBat(batPct);
+                    }
+                } else {
+                    NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] RREQTEST: No battery implemented yet");
+                }
+                NS_LOG_DEBUG("**************************************");
+                NS_LOG_DEBUG("****************************************************************************");
+                NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREQ");
                 wdsrRoutingHeader.AddWDsrOption(rreq);
+                NS_LOG_DEBUG("****************************************************************************");
+
                 wdsrRoutingHeader.SetPayloadLength(length + 2);
             }
             // Get the TTL value
@@ -1297,7 +1367,11 @@ WDsrOptionRrep::Process(Ptr<Packet> packet,
         wdsrRoutingHeader.SetMessageType(1);
         wdsrRoutingHeader.SetSourceId(GetIDfromIP(source));
         wdsrRoutingHeader.SetDestId(GetIDfromIP(targetAddress));
+        NS_LOG_DEBUG("****************************************************************************");
+        NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREP");
         wdsrRoutingHeader.AddWDsrOption(rrep);
+        NS_LOG_DEBUG("****************************************************************************");
+
         Ptr<Packet> newPacket = Create<Packet>();
         newPacket->AddHeader(wdsrRoutingHeader);
         wdsr->SendReply(newPacket, ipv4Address, nextHop, m_ipv4Route);

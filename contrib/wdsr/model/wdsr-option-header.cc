@@ -422,13 +422,11 @@ WDsrOptionRreqHeader::Serialize(Buffer::Iterator start) const
 
     i.WriteU8(GetType());
     i.WriteU8(GetLength());
-    NS_LOG_DEBUG("****************************************************************************");
-    NS_LOG_DEBUG(">>>>>>> Serialization of RREQ");
     NS_LOG_DEBUG(">>>>>>> Data inside m_identification: "<<(int)m_identification);
     NS_LOG_DEBUG(">>>>>>> Data inside m_lowestBat: "<<(int)m_lowestBat);
     NS_LOG_DEBUG(">>>>>>> Data inside m_txCost: "<<(int)m_txCost);
-    NS_LOG_DEBUG("****************************************************************************");
-    i.WriteHtonU16(m_identification);
+    i.WriteHtonU16((m_identification<<15)+(m_lowestBat<<8)+m_txCost);
+    NS_LOG_DEBUG(">>>>>>> Data before transmission: "<<(int)(m_identification<<15)+(m_lowestBat<<8)+m_txCost);
     WriteTo(i, m_target);
 
     for (VectorIpv4Address_t::const_iterator it = m_ipv4Address.begin(); it != m_ipv4Address.end();
@@ -447,13 +445,14 @@ WDsrOptionRreqHeader::Deserialize(Buffer::Iterator start)
 
     SetType(i.ReadU8());
     SetLength(i.ReadU8());
-    NS_LOG_DEBUG("****************************************************************************");
-    NS_LOG_DEBUG(">>>>>>> Deserialization of RREQ");
-    m_identification = i.ReadNtohU16();
+    uint16_t receivedIdentification = i.ReadNtohU16();
+    NS_LOG_DEBUG(">>>>>>> Data inside received identification: "<<(int)receivedIdentification);
+    m_identification = (receivedIdentification>>15)&0x01;
+    m_lowestBat = (receivedIdentification>>8)&0x7f;
+    m_txCost = (receivedIdentification)&0xff;
     NS_LOG_DEBUG(">>>>>>> Data inside m_identification: "<<(int)m_identification);
     NS_LOG_DEBUG(">>>>>>> Data inside m_lowestBat: "<<(int)m_lowestBat);
     NS_LOG_DEBUG(">>>>>>> Data inside m_txCost: "<<(int)m_txCost);
-    NS_LOG_DEBUG("****************************************************************************");
     ReadFrom(i, m_target);
 
     uint8_t index = 0;
@@ -598,10 +597,11 @@ WDsrOptionRrepHeader::Serialize(Buffer::Iterator start) const
 
     i.WriteU8(GetType());
     i.WriteU8(GetLength());
-
-    NS_LOG_DEBUG(">>>>> Serialize: This is m_lowestBat before Serialize: "<<(int)GetLowestBat());
+    NS_LOG_DEBUG(">>>>>>> Data inside m_lowestBat: "<<(int)m_lowestBat);
+    NS_LOG_DEBUG(">>>>>>> Data inside m_txCost: "<<(int)m_txCost);
     i.WriteU8(GetLowestBat());
     i.WriteU8(0x7e);
+
 
     for (VectorIpv4Address_t::const_iterator it = m_ipv4Address.begin(); it != m_ipv4Address.end();
          it++)
@@ -619,10 +619,10 @@ WDsrOptionRrepHeader::Deserialize(Buffer::Iterator start)
 
     SetType(i.ReadU8());
     SetLength(i.ReadU8());
-    NS_LOG_DEBUG(">>>>> Deserialize: This is m_lowestBat before Deserialize: "<<(int)GetLowestBat());
     SetLowestBat(i.ReadU8());
-    NS_LOG_DEBUG(">>>>> Deserialize: This is m_lowestBat after Deserialize: "<<(int)GetLowestBat());
     i.ReadU8();
+    NS_LOG_DEBUG(">>>>>>> Data inside m_lowestBat: "<<(int)m_lowestBat);
+    NS_LOG_DEBUG(">>>>>>> Data inside m_txCost: "<<(int)m_txCost);
 
     uint8_t index = 0;
     for (std::vector<Ipv4Address>::iterator it = m_ipv4Address.begin(); it != m_ipv4Address.end();
