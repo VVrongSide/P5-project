@@ -25,6 +25,5 @@ netanim/NetAnim:
 	git submodule update --init --recursive
 	cd netanim; qmake NetAnim.pro; make
 
-plot:
-	ns3/ns3 run wdsr-sim
-	cd ns3;./Wdsr-plot.sh && xdg-open Wdsr-plot.png; cd ..
+plot: run
+	cd ns3;./Wdsr-plot.sh && xdg-open Wdsr-plot.pdf; cd ..

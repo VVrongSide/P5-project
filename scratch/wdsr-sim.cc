@@ -118,7 +118,7 @@ main(int argc, char* argv[])
     std::string plotYAxisHeading = "Energy";
     aggregator = CreateObject<GnuplotAggregator>("Wdsr-plot");
         // Set the aggregator's properties.
-    aggregator->SetTerminal("png");
+    aggregator->SetTerminal("pdf");
     aggregator->SetTitle("Energy remaining");
     aggregator->SetLegend(plotXAxisHeading, plotYAxisHeading);
     /******************************/
@@ -174,7 +174,6 @@ main(int argc, char* argv[])
     mobility.Install(adhocNodes);
     /**************************/
 
-#if 1
     Ptr<BasicEnergySource> energySources[adhocNodes.GetN()];
     DeviceEnergyModelContainer deviceModels[adhocNodes.GetN()];
     WifiRadioEnergyModelHelper energyHelper;
@@ -189,10 +188,6 @@ main(int argc, char* argv[])
         deviceModels[i] = energyHelper.Install(allDevices.Get(i), energySources[i]);
         adhocNodes.Get(i)->AggregateObject(energySources[i]);
     }
-#endif
-
-
-
 
     /********* CSV generator energy node ********/
     for (uint32_t i = 0; i < adhocNodes.GetN(); ++i) {
@@ -206,7 +201,7 @@ main(int argc, char* argv[])
         }
     }
     aggregator->Enable();
-        /********************************************/
+    /********************************************/
 
     InternetStackHelper internet;
     WDsrMainHelper wdsrMain;
