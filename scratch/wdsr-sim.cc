@@ -53,6 +53,10 @@ void TotalEnergy (std::string context, double oldValue, double totalEnergy) {
     //NS_LOG_UNCOND ("%INFO TimeStamp: "<<Simulator::Now ().GetSeconds ()<<" secs Total energy consumed Node: "<<context<<" "<<totalEnergy<< " Joules");
 }
 
+void depletion(double value){
+    NS_LOG_UNCOND ("i got value:" << value);
+}
+
 NS_LOG_COMPONENT_DEFINE("WDsrTest");
 
 int
@@ -70,7 +74,7 @@ main(int argc, char* argv[])
   LogComponentEnable ("Ipv4EndPointDemux", LOG_LEVEL_ALL);
 #endif
 
-#if 1
+#if 0
   LogComponentEnable ("WDsrOptions", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrHelper", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrRouting", LOG_LEVEL_ALL);
@@ -102,11 +106,11 @@ main(int argc, char* argv[])
     double voltage = 3.0;       // volts
     double txPowerEnd = 36.0;   // dbm
     double txPowerStart = txPowerEnd;  // dbm
-    double idleCurrent = 0.0273; // Ampere
-    double txCurrent = DbmToW(txPowerEnd)/voltage;   // Ampere
+    double idleCurrent = 0.273; // Ampere
+    double txCurrent = DbmToW(txPowerEnd)/voltage*1.5;   // Ampere
     printf("imma transmit with %.2lfW for this test\n",  DbmToW(txPowerEnd));
 
-    std::string rate = "150";
+    std::string rate = "1Mbps";
     std::string dataMode("DsssRate11Mbps");
     std::string phyMode("DsssRate11Mbps");
 
@@ -164,12 +168,12 @@ main(int argc, char* argv[])
     allDevices = wifi.Install(wifiPhy, wifiMac, adhocNodes);
 
     NS_LOG_INFO("Configure Tracing.");
-
-    // AsciiTraceHelper ascii;
-    // Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream("wdsrtest.tr");
-    // wifiPhy.EnableAsciiAll(stream);
-    // wifiPhy.EnablePcapAll("wdsr-sim");
-
+#if 0 //trace file + pcap
+    AsciiTraceHelper ascii;
+    Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream("wdsrtest.tr");
+    wifiPhy.EnableAsciiAll(stream);
+    wifiPhy.EnablePcapAll("wdsr-sim");
+#endif
     /******* Placement *******/
     RngSeedManager::SetSeed(seed);
     RngSeedManager::SetRun(1);
@@ -185,15 +189,24 @@ main(int argc, char* argv[])
     Ptr<BasicEnergySource> energySources[adhocNodes.GetN()];
     DeviceEnergyModelContainer deviceModels[adhocNodes.GetN()];
     WifiRadioEnergyModelHelper energyHelper;
-    energyHelper.Set("IdleCurrentA", DoubleValue(0.00001));
-    energyHelper.Set("TxCurrentA", DoubleValue(0.5));
+    // **** configure radio energy model*****
+    // IdleCurrentA:      The default radio Idle current in Ampere.
+    // CcaBusyCurrentA:   The default radio CCA Busy State current in Ampere.
+    // TxCurrentA:        The radio Tx current in Ampere.
+    // RxCurrentA:        The radio Rx current in Ampere.
+    // SwitchingCurrentA: The default radio Channel Switch current in Ampere.
+    // SleepCurrentA:     The radio Sleep current in Ampere.
+    // TxCurrentModel:    A pointer to the attached tx current model.
     energyHelper.Set("IdleCurrentA", DoubleValue(idleCurrent));
     energyHelper.Set("TxCurrentA", DoubleValue(txCurrent));
     double eta = DbmToW(txPowerStart) / ((txCurrent - idleCurrent) * voltage);
+    NS_LOG_UNCOND("eta feta is: " << eta);
     energyHelper.SetTxCurrentModel("ns3::LinearWifiTxCurrentModel",
                                     "Voltage", DoubleValue(voltage),
                                     "IdleCurrent", DoubleValue(idleCurrent),
                                     "Eta", DoubleValue(eta));
+    WifiRadioEnergyModel::WifiRadioEnergyDepletionCallback callback = MakeCallback(&depletion);
+    energyHelper.SetDepletionCallback(callback);
 
 
     for (uint32_t i = 0; i < adhocNodes.GetN();i++){
@@ -235,7 +248,7 @@ main(int argc, char* argv[])
     uint16_t port = 9;
     double randomStartTime =
         (1 / ppers) / nSinks; // distributed btw 1s evenly as we are sending 4pkt/s
-#if 0
+#if 1
     for (uint32_t i = 0; i < nSinks; ++i)
     {
         PacketSinkHelper sink("ns3::UdpSocketFactory",
@@ -246,7 +259,7 @@ main(int argc, char* argv[])
 
         OnOffHelper onoff1("ns3::UdpSocketFactory",
                            Address(InetSocketAddress(allInterfaces.GetAddress(i), port)));
-        onoff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=0.0]"));
+        onoff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1.0]"));
         onoff1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0.0]"));
         onoff1.SetAttribute("PacketSize", UintegerValue(packetSize));
         onoff1.SetAttribute("DataRate", DataRateValue(DataRate(rate)));
@@ -256,7 +269,7 @@ main(int argc, char* argv[])
         apps1.Stop(Seconds(dataTime + i * randomStartTime));
     }
 #else
-    double m_packetInterval = 0.1;
+    double m_packetInterval = 0.4;
     uint16_t portNumber = 9;
     UdpEchoServerHelper echoServer(portNumber);
     uint16_t sinkNodeId = 3;
@@ -276,19 +289,21 @@ main(int argc, char* argv[])
     NS_LOG_INFO("Run Simulation.");
     Simulator::Stop(Seconds(TotalTime));
     /******* Animation *******/
+#if 0 //(dis/en)able animation
     AnimationInterface anim("wdsr-sim.xml"); // Mandatory
     anim.EnablePacketMetadata(); // Optional
     anim.EnableIpv4RouteTracking("routingtable-wire.xml",
                                 Seconds(0),             //Start at 0
                                 Seconds(TotalTime),     //Run to totaltime
                                 Seconds(TotalTime/25)); //25 timesteps  
-    //anim.EnableWifiMacCounters(Seconds(0), Seconds(TotalTime)); // Optional
-    //anim.EnableWifiPhyCounters(Seconds(0), Seconds(TotalTime)); // Optional
-    // for (uint32_t i = 0; i < adhocNodes.GetN(); ++i) {
-    //     anim.UpdateNodeDescription(adhocNodes.Get(i), "Fuckers"); // Optional
-    //     anim.UpdateNodeColor(adhocNodes.Get(i), 0, 255, 0);  // Optional
-    //     anim.UpdateNodeSize(i, 200, 200);
-    // }
+    anim.EnableWifiMacCounters(Seconds(0), Seconds(TotalTime)); // Optional
+    anim.EnableWifiPhyCounters(Seconds(0), Seconds(TotalTime)); // Optional
+    for (uint32_t i = 0; i < adhocNodes.GetN(); ++i) {
+        anim.UpdateNodeDescription(adhocNodes.Get(i), "Fuckers"); // Optional
+        anim.UpdateNodeColor(adhocNodes.Get(i), 0, 255, 0);  // Optional
+        anim.UpdateNodeSize(i, 200, 200);
+    }
+#endif
     /*************************/
     Simulator::Run();
     Simulator::Destroy();
