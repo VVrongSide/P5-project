@@ -92,14 +92,21 @@ main(int argc, char* argv[])
     uint32_t nSinks = 10;
     double TotalTime = 200.0;
     double dataTime = 190.0;
-    double ppers = 1;
+    double ppers = 100;
     uint32_t packetSize = 1024;
-    double dataStart = 10.0; // start sending data at 10s
-    double txpDistance = 250.0;
-    double initialJoules = 300;
-    uint32_t seed = 1;
+    double dataStart = 1.0; // start sending data at 10s
+    uint32_t seed = 2;
 
-    std::string rate = "0.512kbps";
+    //energymodel
+    double initialEnergy = 100; // joule
+    double voltage = 3.0;       // volts
+    double txPowerEnd = 36.0;   // dbm
+    double txPowerStart = txPowerEnd;  // dbm
+    double idleCurrent = 0.0273; // Ampere
+    double txCurrent = DbmToW(txPowerEnd)/voltage;   // Ampere
+    printf("imma transmit with %.2lfW for this test\n",  DbmToW(txPowerEnd));
+
+    std::string rate = "150";
     std::string dataMode("DsssRate11Mbps");
     std::string phyMode("DsssRate11Mbps");
 
@@ -109,7 +116,6 @@ main(int argc, char* argv[])
     cmd.AddValue("nSinks", "Number of SINK traffic nodes", nSinks);
     cmd.AddValue("rate", "CBR traffic rate(in kbps), Default:8", rate);
     cmd.AddValue("packetSize", "The packet size", packetSize);
-    cmd.AddValue("txpDistance", "Specify node's transmit range, Default:300", txpDistance);
     cmd.AddValue("seed", "Seed used for random placement, Default:1", seed);
     cmd.Parse(argc, argv);
 
@@ -117,7 +123,6 @@ main(int argc, char* argv[])
     std::string plotXAxisHeading = "Time (seconds)";
     std::string plotYAxisHeading = "Energy";
     aggregator = CreateObject<GnuplotAggregator>("Wdsr-plot");
-        // Set the aggregator's properties.
     aggregator->SetTerminal("pdf");
     aggregator->SetTitle("Energy remaining");
     aggregator->SetLegend(plotXAxisHeading, plotYAxisHeading);
@@ -142,8 +147,11 @@ main(int argc, char* argv[])
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
-    wifiChannel.AddPropagationLoss("ns3::RangePropagationLossModel",
-                                   "MaxRange", DoubleValue(txpDistance));
+    wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel",
+                                    "Frequency", DoubleValue(2.45e9));
+    wifiPhy.Set("TxPowerStart", DoubleValue(txPowerStart));
+    wifiPhy.Set("TxPowerEnd", DoubleValue(txPowerEnd));
+    //wifiPhy.Set("TxPowerLevels", UintegerValue(nTxPowerLevels));
     wifiPhy.SetChannel(wifiChannel.Create());
 
     // Add a mac and disable rate control
@@ -157,19 +165,19 @@ main(int argc, char* argv[])
 
     NS_LOG_INFO("Configure Tracing.");
 
-    AsciiTraceHelper ascii;
-    Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream("wdsrtest.tr");
-    wifiPhy.EnableAsciiAll(stream);
-    wifiPhy.EnablePcapAll("wdsr-sim");
+    // AsciiTraceHelper ascii;
+    // Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream("wdsrtest.tr");
+    // wifiPhy.EnableAsciiAll(stream);
+    // wifiPhy.EnablePcapAll("wdsr-sim");
 
     /******* Placement *******/
     RngSeedManager::SetSeed(seed);
     RngSeedManager::SetRun(1);
     MobilityHelper mobility;
     mobility.SetPositionAllocator("ns3::RandomBoxPositionAllocator",
-                                    "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=750]"),
-                                    "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=750]"),
-                                    "Z", StringValue("ns3::UniformRandomVariable[Min=1.0|Max=2.0]"));
+                                    "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=15000]"),
+                                    "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=15000]"),
+                                    "Z", StringValue("ns3::UniformRandomVariable[Min=1.0|Max=50.0]"));
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(adhocNodes);
     /**************************/
@@ -182,9 +190,17 @@ main(int argc, char* argv[])
 
     for (uint32_t i = 0; i < adhocNodes.GetN();i++){
         energySources[i] = CreateObject<BasicEnergySource>();
-        energySources[i]->SetInitialEnergy(initialJoules);
+        energySources[i]->SetInitialEnergy(initialEnergy);
+        energySources[i]->SetSupplyVoltage(voltage);
 
         energySources[i]->SetNode(adhocNodes.Get(i));
+        double eta = DbmToW(txPowerStart) / ((txCurrent - idleCurrent) * voltage);
+        energyHelper.Set("IdleCurrentA", DoubleValue(idleCurrent));
+        energyHelper.Set("TxCurrentA", DoubleValue(txCurrent));
+        energyHelper.SetTxCurrentModel("ns3::LinearWifiTxCurrentModel",
+                                        "Voltage", DoubleValue(voltage),
+                                        "IdleCurrent", DoubleValue(idleCurrent),
+                                        "Eta", DoubleValue(eta));
         deviceModels[i] = energyHelper.Install(allDevices.Get(i), energySources[i]);
         adhocNodes.Get(i)->AggregateObject(energySources[i]);
     }
@@ -218,7 +234,7 @@ main(int argc, char* argv[])
     uint16_t port = 9;
     double randomStartTime =
         (1 / ppers) / nSinks; // distributed btw 1s evenly as we are sending 4pkt/s
-
+#if 0
     for (uint32_t i = 0; i < nSinks; ++i)
     {
         PacketSinkHelper sink("ns3::UdpSocketFactory",
@@ -229,7 +245,7 @@ main(int argc, char* argv[])
 
         OnOffHelper onoff1("ns3::UdpSocketFactory",
                            Address(InetSocketAddress(allInterfaces.GetAddress(i), port)));
-        onoff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1.0]"));
+        onoff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=0.0]"));
         onoff1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0.0]"));
         onoff1.SetAttribute("PacketSize", UintegerValue(packetSize));
         onoff1.SetAttribute("DataRate", DataRateValue(DataRate(rate)));
@@ -238,7 +254,23 @@ main(int argc, char* argv[])
         apps1.Start(Seconds(dataStart + i * randomStartTime));
         apps1.Stop(Seconds(dataTime + i * randomStartTime));
     }
-
+#else
+    double m_packetInterval = 0.1;
+    uint16_t portNumber = 9;
+    UdpEchoServerHelper echoServer(portNumber);
+    uint16_t sinkNodeId = 3;
+    ApplicationContainer serverApps = echoServer.Install(adhocNodes.Get(sinkNodeId));
+    serverApps.Start(Seconds(1.0));
+    serverApps.Stop(Seconds(dataTime + 1));
+    UdpEchoClientHelper echoClient(allInterfaces.GetAddress(sinkNodeId), portNumber);
+    echoClient.SetAttribute("MaxPackets",
+                            UintegerValue((uint32_t)(dataTime * (1 / m_packetInterval))));
+    echoClient.SetAttribute("Interval", TimeValue(Seconds(m_packetInterval)));
+    echoClient.SetAttribute("PacketSize", UintegerValue(packetSize));
+    ApplicationContainer clientApps = echoClient.Install(adhocNodes.Get(0));
+    clientApps.Start(Seconds(1.0));
+    clientApps.Stop(Seconds(TotalTime));
+#endif
 
     NS_LOG_INFO("Run Simulation.");
     Simulator::Stop(Seconds(TotalTime));
@@ -249,13 +281,13 @@ main(int argc, char* argv[])
                                 Seconds(0),             //Start at 0
                                 Seconds(TotalTime),     //Run to totaltime
                                 Seconds(TotalTime/25)); //25 timesteps  
-    anim.EnableWifiMacCounters(Seconds(0), Seconds(TotalTime)); // Optional
-    anim.EnableWifiPhyCounters(Seconds(0), Seconds(TotalTime)); // Optional
-    for (uint32_t i = 0; i < adhocNodes.GetN(); ++i) {
-        anim.UpdateNodeDescription(adhocNodes.Get(i), "Fuckers"); // Optional
-        anim.UpdateNodeColor(adhocNodes.Get(i), 0, 255, 0);  // Optional
-        anim.UpdateNodeSize(i, 10, 10);
-    }
+    //anim.EnableWifiMacCounters(Seconds(0), Seconds(TotalTime)); // Optional
+    //anim.EnableWifiPhyCounters(Seconds(0), Seconds(TotalTime)); // Optional
+    // for (uint32_t i = 0; i < adhocNodes.GetN(); ++i) {
+    //     anim.UpdateNodeDescription(adhocNodes.Get(i), "Fuckers"); // Optional
+    //     anim.UpdateNodeColor(adhocNodes.Get(i), 0, 255, 0);  // Optional
+    //     anim.UpdateNodeSize(i, 200, 200);
+    // }
     /*************************/
     Simulator::Run();
     Simulator::Destroy();
