@@ -293,7 +293,7 @@ WDsrOptionRreqHeader::WDsrOptionRreqHeader()
     SetType(1);
     SetLength(6 + m_ipv4Address.size() * 4);
     SetLowestBat(0x7f);
-    SetTxCost(0xff);
+    SetTxCost(0x00);
 }
 
 WDsrOptionRreqHeader::~WDsrOptionRreqHeader()
@@ -393,6 +393,19 @@ WDsrOptionRreqHeader::GetLowestBat() const
     return m_lowestBat;
 }
 
+// Trying to make a function that fixes the neighboring node problem
+void 
+WDsrOptionRreqHeader::CalcLowestBat(uint8_t lowestBat, double remainingBattery, double initialJoules)
+{
+    NS_LOG_DEBUG(">>> RREQTEST: This is remaining battery: "<<remainingBattery<<" Joules");
+    uint8_t batPct = (remainingBattery/initialJoules)*0x7f; // 0x7f er 127, benjamin er tosset
+    NS_LOG_DEBUG(">>> RREQTEST: This is remaining battery in 127th parts: "<<(int)batPct<<"/127 parts");
+    if (lowestBat>batPct){
+        NS_LOG_DEBUG(">>>  RREQTEST: This is when lowestBat > batPct | "<<(int)lowestBat<<" > "<<(int)batPct);
+        SetLowestBat(batPct);
+    }
+}
+
 void
 WDsrOptionRreqHeader::Print(std::ostream& os) const
 {
@@ -419,7 +432,6 @@ WDsrOptionRreqHeader::Serialize(Buffer::Iterator start) const
 {
     Buffer::Iterator i = start;
     uint8_t buff[4];
-
     i.WriteU8(GetType());
     i.WriteU8(GetLength());
     NS_LOG_DEBUG(">>>>>>> Data inside m_identification: "<<(int)m_identification);
@@ -499,7 +511,7 @@ WDsrOptionRrepHeader::WDsrOptionRrepHeader()
     SetType(2);
     SetLength(2 + m_ipv4Address.size() * 4);
     SetLowestBat(0x7f);
-    SetTxCost(0xff);
+    SetTxCost(0x00);
 }
 
 WDsrOptionRrepHeader::~WDsrOptionRrepHeader()
@@ -568,6 +580,19 @@ WDsrOptionRrepHeader::GetLowestBat() const
     return m_lowestBat;
 }
 
+// Trying to make a function that fixes the neighboring node problem
+void 
+WDsrOptionRrepHeader::CalcLowestBat(uint8_t lowestBat, double remainingBattery, double initialJoules)
+{
+    NS_LOG_DEBUG(">>> RREPTEST: This is remaining battery: "<<remainingBattery<<" Joules");
+    uint8_t batPct = (remainingBattery/initialJoules)*0x7f; // 0x7f er 127, benjamin er tosset
+    NS_LOG_DEBUG(">>> RREPTEST: This is remaining battery in 127th parts: "<<(int)batPct<<"/127 parts");
+    if (lowestBat>batPct){
+        NS_LOG_DEBUG(">>>  RREPTEST: This is when lowestBat > batPct | "<<(int)lowestBat<<" > "<<(int)batPct);
+        SetLowestBat(batPct);
+    }
+}
+
 void
 WDsrOptionRrepHeader::Print(std::ostream& os) const
 {
@@ -599,8 +624,9 @@ WDsrOptionRrepHeader::Serialize(Buffer::Iterator start) const
     i.WriteU8(GetLength());
     NS_LOG_DEBUG(">>>>>>> Data inside m_lowestBat: "<<(int)m_lowestBat);
     NS_LOG_DEBUG(">>>>>>> Data inside m_txCost: "<<(int)m_txCost);
+    NS_LOG_DEBUG(">>>>>>> Data inside m_txCost after adding txCost: "<<(int)(m_txCost));
     i.WriteU8(GetLowestBat());
-    i.WriteU8(0x7e);
+    i.WriteU8(GetTxCost());
 
 
     for (VectorIpv4Address_t::const_iterator it = m_ipv4Address.begin(); it != m_ipv4Address.end();
@@ -620,7 +646,7 @@ WDsrOptionRrepHeader::Deserialize(Buffer::Iterator start)
     SetType(i.ReadU8());
     SetLength(i.ReadU8());
     SetLowestBat(i.ReadU8());
-    i.ReadU8();
+    SetTxCost(i.ReadU8());
     NS_LOG_DEBUG(">>>>>>> Data inside m_lowestBat: "<<(int)m_lowestBat);
     NS_LOG_DEBUG(">>>>>>> Data inside m_txCost: "<<(int)m_txCost);
 

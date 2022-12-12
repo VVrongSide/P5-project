@@ -113,11 +113,13 @@ WDsrLinkStab::Print() const
 
 typedef std::list<WDsrRouteCacheEntry>::value_type route_pair;
 
-WDsrRouteCacheEntry::WDsrRouteCacheEntry(IP_VECTOR const& ip, Ipv4Address dst, Time exp)
+WDsrRouteCacheEntry::WDsrRouteCacheEntry(IP_VECTOR const& ip, Ipv4Address dst, Time exp, uint8_t lowestBat, uint8_t txCost)
     : m_ackTimer(Timer::CANCEL_ON_DESTROY),
       m_dst(dst),
       m_path(ip),
       m_expire(exp + Simulator::Now()),
+      m_lowestBat(lowestBat),
+      m_txCost(txCost),
       m_reqCount(0),
       m_blackListState(false),
       m_blackListTimeout(Simulator::Now())
@@ -133,6 +135,30 @@ WDsrRouteCacheEntry::Invalidate(Time badLinkLifetime)
 {
     m_reqCount = 0;
     m_expire = badLinkLifetime + Simulator::Now();
+}
+
+void
+WDsrRouteCacheEntry::SetTxCost(uint8_t txCost)
+{
+    m_txCost = txCost;
+}
+
+uint8_t
+WDsrRouteCacheEntry::GetTxCost() const
+{
+    return m_txCost;
+}
+
+void
+WDsrRouteCacheEntry::SetLowestBat(uint8_t lowestBat)
+{
+    m_lowestBat = lowestBat;
+}
+
+uint8_t
+WDsrRouteCacheEntry::GetLowestBat() const
+{
+    return m_lowestBat;
 }
 
 void

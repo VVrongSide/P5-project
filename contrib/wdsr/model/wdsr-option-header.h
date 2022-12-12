@@ -369,10 +369,13 @@ class WDsrOptionRreqHeader : public WDsrOptionHeader
      */
     uint8_t GetLowestBat() const;
     /**
+    * \brief Trying to make a function that fixes the neighboring node problem
+    */
+    void CalcLowestBat(uint8_t lowestBat, double remainingBattery, double initialJoules);
+    /**
      * \brief Print some information about the packet.
      * \param os output stream
      */
-
     void Print(std::ostream& os) const override;
     /**
      * \brief Get the serialized size of the packet.
@@ -548,6 +551,10 @@ class WDsrOptionRrepHeader : public WDsrOptionHeader
      * \return the lowest battery in the route
      */
     uint8_t GetLowestBat() const;
+    /**
+    * \brief Trying to make a function that fixes the neighboring node problem
+    */
+    void CalcLowestBat(uint8_t lowestBat, double remainingBattery, double initialJoules);
     /**
      * \brief Print some information about the packet.
      * \param os output stream

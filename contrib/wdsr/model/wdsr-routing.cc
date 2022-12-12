@@ -72,6 +72,10 @@
 #include "ns3/udp-socket-factory.h"
 #include "ns3/uinteger.h"
 #include "ns3/wifi-net-device.h"
+#include "ns3/wifi-radio-energy-model.h"
+#include "ns3/basic-energy-source.h"
+#include "ns3/simple-device-energy-model.h"
+
 
 #include <algorithm>
 #include <ctime>
@@ -92,7 +96,10 @@ NS_OBJECT_ENSURE_REGISTERED(WDsrRouting);
 
 /* see http://www.iana.org/assignments/protocol-numbers */
 const uint8_t WDsrRouting::PROT_NUMBER = 48;
-
+/*
+* \brief The max capacity for all node batteries
+*/
+double initialJoules2 = 3000;
 /*
  * The extension header is the fixed size wdsr header, it is response for recognizing WDSR option
  types
@@ -2968,8 +2975,43 @@ WDsrRouting::SendInitialRequest(Ipv4Address source, Ipv4Address destination, uin
         m_rreqTable->CheckUniqueRreqId(destination); // Check the Id cache for duplicate ones
     rreqHeader.SetId(m_requestId);
 
+    Ptr<Node> node = GetNodeWithAddress(m_mainAddress);
+    Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>(); // Create a pointer to the basic energy source object of the node
+            
+    uint8_t length =
+        rreqHeader.GetLength(); // Get the length of the rreqHeader header excluding the type header
+   
+    uint8_t lowestBat =
+        rreqHeader.GetLowestBat(); // Get the length of the rreqHeader header excluding the type header
+    double remainingBattery = 
+        nodeEnergySource->GetRemainingEnergy(); // Get the remaining battery of the node
+    
+    uint8_t txCost = 
+        rreqHeader.GetTxCost();
+    uint8_t placeholder =
+        1;  // ! Set this to whatever the txCost is
+
+    wdsrRoutingHeader.SetPayloadLength(length + 2);
+
+    NS_LOG_DEBUG("**************************************");
+    NS_LOG_DEBUG("Is this it?!");
+    NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
+    if (nodeEnergySource != 0){ 
+        rreqHeader.CalcLowestBat(/*lowestBat=*/lowestBat,
+                           /*remainingBattery=*/remainingBattery,
+                           /*initialJoules=*/initialJoules2);
+        rreqHeader.SetTxCost(txCost+placeholder);
+    } else {
+        NS_LOG_DEBUG(">>> RREQTEST: No <BasicEnergySource> implemented yet");
+    }
+    NS_LOG_DEBUG("**************************************");
+    NS_LOG_DEBUG("****************************************************************************");
+    NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREQ");
     wdsrRoutingHeader.AddWDsrOption(rreqHeader); // Add the rreqHeader to the wdsr extension header
-    uint8_t length = rreqHeader.GetLength();
+    NS_LOG_DEBUG("****************************************************************************");
+    
+    
+            
     wdsrRoutingHeader.SetPayloadLength(uint16_t(length) + 2);
     packet->AddHeader(wdsrRoutingHeader);
 
@@ -3400,11 +3442,42 @@ WDsrRouting::SendGratuitousReply(Ipv4Address source,
         wdsrRoutingHeader.SetMessageType(1);
         wdsrRoutingHeader.SetSourceId(GetIDfromIP(replySrc));
         wdsrRoutingHeader.SetDestId(GetIDfromIP(replyDst));
-
+        Ptr<Node> node = GetNodeWithAddress(m_mainAddress);
+        Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>(); // Create a pointer to the basic energy source object of the node
+            
         uint8_t length =
             rrep.GetLength(); // Get the length of the rrep header excluding the type header
+       
+        uint8_t lowestBat =
+            rrep.GetLowestBat(); // Get the length of the rrep header excluding the type header
+        double remainingBattery = 
+            nodeEnergySource->GetRemainingEnergy(); // Get the remaining battery of the node
+        
+        uint8_t txCost = 
+            rrep.GetTxCost();
+        uint8_t placeholder =
+            1;  // ! Set this to whatever the txCost is
+
+        wdsrRoutingHeader.SetPayloadLength(length + 2);
+
+        NS_LOG_DEBUG("**************************************");
+        NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
+        if (nodeEnergySource != 0){ 
+            rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
+                               /*remainingBattery=*/remainingBattery,
+                               /*initialJoules=*/initialJoules2);
+            rrep.SetTxCost(txCost+placeholder);
+        } else {
+            NS_LOG_DEBUG(">>> RREPTEST: No <BasicEnergySource> implemented yet");
+        }
+        NS_LOG_DEBUG("**************************************");
+
         wdsrRoutingHeader.SetPayloadLength(uint16_t(length) + 2);
+
+        NS_LOG_DEBUG("****************************************************************************");
+        NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREP");
         wdsrRoutingHeader.AddWDsrOption(rrep);
+        NS_LOG_DEBUG("****************************************************************************");
         Ptr<Packet> newPacket = Create<Packet>();
         newPacket->AddHeader(wdsrRoutingHeader);
         /*

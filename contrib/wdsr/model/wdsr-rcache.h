@@ -241,7 +241,10 @@ class WDsrRouteCacheEntry
      */
     WDsrRouteCacheEntry(IP_VECTOR const& ip = IP_VECTOR(),
                        Ipv4Address dst = Ipv4Address(),
-                       Time exp = Simulator::Now());
+                       Time exp = Simulator::Now(),
+                       uint8_t lowestBat = 0,
+                       uint8_t txCost = 0);
+
     virtual ~WDsrRouteCacheEntry();
 
     /// Mark entry as "down" (i.e. disable it)
@@ -338,7 +341,26 @@ class WDsrRouteCacheEntry
     {
         return m_expire - Simulator::Now();
     }
-
+    /**
+     * \brief Set the 1 reserved field to txCost
+     * \param the total transmission cost of the route
+     */
+    void SetTxCost(uint8_t txCost);
+    /**
+     * \brief Get the txCost from the first field
+     * \return set the total transmission cost
+     */
+    uint8_t GetTxCost() const;
+    /**
+     * \brief Set the 1 reserved field to lowestBat
+     * \param the lowest battery in the route
+     */
+    void SetLowestBat(uint8_t lowestBat);
+    /**
+     * \brief Get the lowestBat from the first field
+     * \return the lowest battery in the route
+     */
+    uint8_t GetLowestBat() const;
     /**
      * \brief Print necessary fields
      * \param os the output stream
@@ -385,6 +407,8 @@ class WDsrRouteCacheEntry
     Timer m_ackTimer;             ///< RREP_ACK timer
     Ipv4Address m_dst;            ///< The destination Ip address
     IP_VECTOR m_path;             ///< brief The IP address constructed route
+    uint8_t m_lowestBat;          ///< Lowest battery cost on route
+    uint8_t m_txCost;             ///< Transmission cost for the entire route
     Time m_expire;                ///< Expire time for queue entry
     Ipv4InterfaceAddress m_iface; ///< Output interface address
     uint8_t m_reqCount;           ///< Number of route requests
