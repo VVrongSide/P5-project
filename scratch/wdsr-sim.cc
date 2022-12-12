@@ -189,6 +189,7 @@ main(int argc, char* argv[])
     energyHelper.Set("TxCurrentA", DoubleValue(0.5));
     energyHelper.Set("IdleCurrentA", DoubleValue(idleCurrent));
     energyHelper.Set("TxCurrentA", DoubleValue(txCurrent));
+    double eta = DbmToW(txPowerStart) / ((txCurrent - idleCurrent) * voltage);
     energyHelper.SetTxCurrentModel("ns3::LinearWifiTxCurrentModel",
                                     "Voltage", DoubleValue(voltage),
                                     "IdleCurrent", DoubleValue(idleCurrent),
@@ -201,7 +202,6 @@ main(int argc, char* argv[])
         energySources[i]->SetSupplyVoltage(voltage);
 
         energySources[i]->SetNode(adhocNodes.Get(i));
-        double eta = DbmToW(txPowerStart) / ((txCurrent - idleCurrent) * voltage);
         deviceModels[i] = energyHelper.Install(allDevices.Get(i), energySources[i]);
         adhocNodes.Get(i)->AggregateObject(energySources[i]);
     }
