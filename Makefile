@@ -27,3 +27,17 @@ netanim/NetAnim:
 
 plot: run
 	cd ns3;./Wdsr-plot.sh && xdg-open Wdsr-plot.pdf; cd ..
+
+plotComp:
+	ns3/ns3 run "wdsr-sim --comp=1"
+	cd ns3;./Wdsr-plot.sh && ./Dsr-plot.sh; cd ..
+
+avg:
+	gcc avg.c -o avg -O2
+
+summed: avg plotComp
+	cat ns3/Wdsr-plot.dat | ./avg | sort -snk 1,1 | ./avg > ns3/Wdsr-sum.dat
+	cat ns3/Dsr-plot.dat | ./avg | sort -snk 1,1 | ./avg > ns3/Dsr-sum.dat
+	gnuplot summed-plot.plt
+	xdg-open ns3/total-plot.pdf
+

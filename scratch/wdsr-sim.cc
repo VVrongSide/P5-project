@@ -33,6 +33,7 @@
 #include "ns3/config-store-module.h"
 #include "ns3/core-module.h"
 #include "ns3/wdsr-module.h"
+#include "ns3/dsr-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/network-module.h"
@@ -100,6 +101,7 @@ main(int argc, char* argv[])
     uint32_t packetSize = 1024;
     double dataStart = 1.0; // start sending data at 10s
     uint32_t seed = 2;
+    int runDSR = 0;
 
     //energymodel
     double initialEnergy = 100; // joule
@@ -108,7 +110,6 @@ main(int argc, char* argv[])
     double txPowerStart = txPowerEnd;  // dbm
     double idleCurrent = 0.273; // Ampere
     double txCurrent = DbmToW(txPowerEnd)/voltage*1.5;   // Ampere
-    printf("imma transmit with %.2lfW for this test\n",  DbmToW(txPowerEnd));
 
     std::string rate = "1Mbps";
     std::string dataMode("DsssRate11Mbps");
@@ -121,12 +122,16 @@ main(int argc, char* argv[])
     cmd.AddValue("rate", "CBR traffic rate(in kbps), Default:8", rate);
     cmd.AddValue("packetSize", "The packet size", packetSize);
     cmd.AddValue("seed", "Seed used for random placement, Default:1", seed);
+    cmd.AddValue("comp", "Compare WDSR to DSR, Default: 0", runDSR);
     cmd.Parse(argc, argv);
+
+    for (int dsr = 0; dsr < (1+runDSR); dsr++) { //1 for only WDSR 2 for Compare.
+    printf("imma transmit with %.2lfW for this test. The test is %s\n",  DbmToW(txPowerEnd), dsr ? "dsr": "wdsr");
 
     /********* Gnuplot ***********/
     std::string plotXAxisHeading = "Time (seconds)";
     std::string plotYAxisHeading = "Energy";
-    aggregator = CreateObject<GnuplotAggregator>("Wdsr-plot");
+    aggregator = CreateObject<GnuplotAggregator>(dsr ? "Dsr-plot" : "Wdsr-plot");
     aggregator->SetTerminal("pdf");
     aggregator->SetTitle("Energy remaining");
     aggregator->SetLegend(plotXAxisHeading, plotYAxisHeading);
@@ -170,9 +175,9 @@ main(int argc, char* argv[])
     NS_LOG_INFO("Configure Tracing.");
 #if 0 //trace file + pcap
     AsciiTraceHelper ascii;
-    Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream("wdsrtest.tr");
+    Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream(dsr ? "dsrtest.tr" : "wdsrtest.tr");
     wifiPhy.EnableAsciiAll(stream);
-    wifiPhy.EnablePcapAll("wdsr-sim");
+    wifiPhy.EnablePcapAll(dsr ? "dsr-sim" : "wdsr-sim");
 #endif
     /******* Placement *******/
     RngSeedManager::SetSeed(seed);
@@ -234,10 +239,13 @@ main(int argc, char* argv[])
     /********************************************/
 
     InternetStackHelper internet;
+    DsrMainHelper dsrMain;
+    DsrHelper dsrH;
+    dsrH.Set("CacheType", StringValue("PathCache"));
     WDsrMainHelper wdsrMain;
     WDsrHelper wdsr;
     internet.Install(adhocNodes);
-    wdsrMain.Install(wdsr, adhocNodes);
+    dsr ? dsrMain.Install(dsrH, adhocNodes) : wdsrMain.Install(wdsr, adhocNodes);
 
     NS_LOG_INFO("assigning ip address");
     Ipv4AddressHelper address;
@@ -290,7 +298,7 @@ main(int argc, char* argv[])
     Simulator::Stop(Seconds(TotalTime));
     /******* Animation *******/
 #if 0 //(dis/en)able animation
-    AnimationInterface anim("wdsr-sim.xml"); // Mandatory
+    AnimationInterface anim(dsr ? "dsr-sim.xml" : "wdsr-sim.xml"); // Mandatory
     anim.EnablePacketMetadata(); // Optional
     anim.EnableIpv4RouteTracking("routingtable-wire.xml",
                                 Seconds(0),             //Start at 0
@@ -307,4 +315,5 @@ main(int argc, char* argv[])
     /*************************/
     Simulator::Run();
     Simulator::Destroy();
+    }
 }
