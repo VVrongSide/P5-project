@@ -79,7 +79,7 @@ NS_OBJECT_ENSURE_REGISTERED(WDsrOptions);
 /*
 * \brief The max capacity for all node batteries
 */
-double initialJoules = 3000;
+double initialEnergy = 100;
 
 TypeId
 WDsrOptions::GetTypeId()
@@ -560,6 +560,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
     NS_LOG_FUNCTION(this << packet << wdsrP << ipv4Address << source << ipv4Header
                          << (uint32_t)protocol << isPromisc);
     // Fields from IP header
+    Time ActiveRouteTimeout = Seconds(5);
     Ipv4Address srcAddress = ipv4Header.GetSource();
     /*
      * \ when the ip source address is equal to the address of our own, this is request packet
@@ -713,6 +714,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                 m_finalRoute.push_back(source);      // push back the request originator's address
                 m_finalRoute.push_back(ipv4Address); // push back our own address
                 nextHop = srcAddress;
+                NS_LOG_DEBUG(">>0 nextHop " << nextHop);
             }
             else
             {
@@ -727,6 +729,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                 }
                 PrintVector(m_finalRoute);
                 nextHop = ReverseSearchNextHop(ipv4Address, m_finalRoute); // get the next hop
+                NS_LOG_DEBUG(">>1 nextHop " << nextHop);
             }
 
             WDsrOptionRrepHeader rrep;
@@ -766,8 +769,10 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             if (nodeEnergySource != 0){ 
                 rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
                                    /*remainingBattery=*/remainingBattery,
-                                   /*initialJoules=*/initialJoules);
+                                   /*initialEnergy=*/initialEnergy);
+                NS_LOG_DEBUG("txCost before setting: "<<(int)txCost);
                 rrep.SetTxCost(txCost+placeholder);
+                NS_LOG_DEBUG("txCost after setting: "<<(int)rrep.GetTxCost());
             } else {
                 NS_LOG_DEBUG(">>> RREPTEST: No <BasicEnergySource> implemented yet");
             }
@@ -806,6 +811,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                     }
                     else
                     {
+                        NS_LOG_DEBUG("ActiveRouteTimeout: "<<ActiveRouteTimeout);
                         NS_LOG_DEBUG("Added route with lowestBat: "<<(int) rrep.GetLowestBat());
                         NS_LOG_DEBUG("Added route with txCost: "<<(int) rrep.GetTxCost());                        
                         addRoute = wdsr->AddRoute(toSource);
@@ -838,6 +844,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                     sourceRoute.SetSalvage(0);
                     Ipv4Address nextHop =
                         SearchNextHop(ipv4Address, m_finalRoute); // Get the next hop address
+                        NS_LOG_DEBUG(">>2 nextHop " << nextHop);
                     NS_LOG_DEBUG("The nextHop address " << nextHop);
 
                     if (nextHop == "0.0.0.0")
@@ -926,6 +933,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                 }
                 else
                 {
+                    NS_LOG_DEBUG("ActiveRouteTimeout: "<<ActiveRouteTimeout);
                     NS_LOG_DEBUG("Added route with lowestBat: "<<(int) rreq.GetLowestBat());
                     NS_LOG_DEBUG("Added route with txCost: "<<(int) rreq.GetTxCost());          
                     addRoute = wdsr->AddRoute(toSource);
@@ -952,6 +960,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                     sourceRoute.SetSalvage(salvage);
                     Ipv4Address nextHop =
                         SearchNextHop(ipv4Address, saveRoute); // Get the next hop address
+                    NS_LOG_DEBUG(">>3 nextHop " << nextHop);
                     NS_LOG_DEBUG("The nextHop address " << nextHop);
 
                     if (nextHop == "0.0.0.0")
@@ -983,6 +992,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
              * Need to first pin down the next hop address before removing duplicates
              */
             Ipv4Address nextHop = ReverseSearchNextHop(ipv4Address, m_finalRoute);
+            NS_LOG_DEBUG(">>4 nextHop " << nextHop);
             /*
              * First remove the duplicate ip address to automatically shorten the route, and then
              * reversely search the next hop address
@@ -1029,8 +1039,10 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             if (nodeEnergySource != 0){ 
                 rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
                                    /*remainingBattery=*/remainingBattery,
-                                   /*initialJoules=*/initialJoules);
+                                   /*initialEnergy=*/initialEnergy);
+                NS_LOG_DEBUG("txCost before setting: "<<(int)txCost);
                 rrep.SetTxCost(txCost+placeholder);
+                NS_LOG_DEBUG("txCost after setting: "<<(int)rrep.GetTxCost());
             } else {
                 NS_LOG_DEBUG(">>> RREPTEST: No <BasicEnergySource> implemented yet");
             }
@@ -1093,7 +1105,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                     if (nodeEnergySource != 0){ 
                         rreq.CalcLowestBat(/*lowestBat=*/lowestBat,
                                            /*remainingBattery=*/remainingBattery,
-                                           /*initialJoules=*/initialJoules);
+                                           /*initialEnergy=*/initialEnergy);
                         rreq.SetTxCost(txCost+placeholder);
                     } else {
                         NS_LOG_DEBUG(">>> RREQTEST: No <BasicEnergySource> implemented yet");
@@ -1138,7 +1150,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                     if (nodeEnergySource != 0){ 
                         rreq.CalcLowestBat(/*lowestBat=*/lowestBat,
                                            /*remainingBattery=*/remainingBattery,
-                                           /*initialJoules=*/initialJoules);
+                                           /*initialEnergy=*/initialEnergy);
                         rreq.SetTxCost(txCost+placeholder);
                     } else {
                         NS_LOG_DEBUG(">>> RREQTEST: No <BasicEnergySource> implemented yet");
@@ -1176,7 +1188,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                 if (nodeEnergySource != 0){ 
                     rreq.CalcLowestBat(/*lowestBat=*/lowestBat,
                                        /*remainingBattery=*/remainingBattery,
-                                       /*initialJoules=*/initialJoules);
+                                       /*initialEnergy=*/initialEnergy);
                     rreq.SetTxCost(txCost+placeholder);
                 } else {
                     NS_LOG_DEBUG(">>> RREQTEST: No <BasicEnergySource> implemented yet");
@@ -1260,7 +1272,7 @@ WDsrOptionRrep::Process(Ptr<Packet> packet,
 {
     NS_LOG_FUNCTION(this << packet << wdsrP << ipv4Address << source << ipv4Header
                          << (uint32_t)protocol << isPromisc);
-
+    Time ActiveRouteTimeout = Seconds(5);
     Ptr<Packet> p = packet->Copy();
 
     // Get the number of routers' address field
@@ -1321,6 +1333,7 @@ WDsrOptionRrep::Process(Ptr<Packet> packet,
         }
         else
         {
+            NS_LOG_DEBUG("ActiveRouteTimeout: "<<ActiveRouteTimeout);
             NS_LOG_DEBUG("Added route with lowestBat: "<<(int) rrep.GetLowestBat());
             NS_LOG_DEBUG("Added route with txCost: "<<(int) rrep.GetTxCost());
             addRoute = wdsr->AddRoute(toDestination);
@@ -1340,6 +1353,7 @@ WDsrOptionRrep::Process(Ptr<Packet> packet,
             sourceRoute.SetSegmentsLeft((nodeList.size() - 2));
             sourceRoute.SetSalvage(0);
             Ipv4Address nextHop = SearchNextHop(ipv4Address, nodeList); // Get the next hop address
+            NS_LOG_DEBUG(">>5 nextHop " << nextHop);
             NS_LOG_DEBUG("The nextHop address " << nextHop);
             if (nextHop == "0.0.0.0")
             {
@@ -1401,6 +1415,7 @@ WDsrOptionRrep::Process(Ptr<Packet> packet,
             }
             else
             {
+                NS_LOG_DEBUG("ActiveRouteTimeout: "<<ActiveRouteTimeout);
                 NS_LOG_DEBUG("Added route with lowestBat: "<<(int) rrep.GetLowestBat());
                 NS_LOG_DEBUG("Added route with txCost: "<<(int) rrep.GetTxCost());          
                 addRoute = wdsr->AddRoute(toDestination);
@@ -1422,6 +1437,7 @@ WDsrOptionRrep::Process(Ptr<Packet> packet,
          * Reverse search the vector for next hop address
          */
         Ipv4Address nextHop = ReverseSearchNextHop(ipv4Address, routeCopy);
+        NS_LOG_DEBUG(">>6 nextHop " << nextHop);
         NS_ASSERT(routeCopy.back() == source);
         PrintVector(routeCopy);
         NS_LOG_DEBUG("The nextHop address " << nextHop << " and the source in the route reply "
@@ -1697,6 +1713,7 @@ WDsrOptionSR::Process(Ptr<Packet> packet,
          * Search the vector for next hop address
          */
         Ipv4Address nextHop = SearchNextHop(ipv4Address, nodeList);
+        NS_LOG_DEBUG(">>7 nextHop " << nextHop);
         PrintVector(nodeList);
 
         if (nextHop == "0.0.0.0")

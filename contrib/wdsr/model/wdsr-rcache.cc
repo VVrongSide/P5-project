@@ -70,8 +70,28 @@ CompareRoutesBoth(const WDsrRouteCacheEntry& a, const WDsrRouteCacheEntry& b)
 bool
 CompareRoutesHops(const WDsrRouteCacheEntry& a, const WDsrRouteCacheEntry& b)
 {
+    NS_LOG_DEBUG("-- Comparing based on hops");
+    NS_LOG_DEBUG("a.GetVector().size(): "<<a.GetVector().size()<<" < b.GetVector().size(): "<<b.GetVector().size());
     // compare based on hops
     return a.GetVector().size() < b.GetVector().size();
+}
+
+bool
+CompareLowestBat(const WDsrRouteCacheEntry& a, const WDsrRouteCacheEntry& b)
+{
+    NS_LOG_DEBUG("-- Comparing based on lowestBat");
+    // compare based on hops
+    NS_LOG_DEBUG("a.GetLowestBat(): "<<(int) a.GetLowestBat()<<" <= b.GetLowestBat(): "<<(int) b.GetLowestBat());
+    return a.GetLowestBat() <= b.GetLowestBat();
+}
+
+bool
+CompareTxCost(const WDsrRouteCacheEntry& a, const WDsrRouteCacheEntry& b)
+{
+    NS_LOG_DEBUG("-- Comparing based on txCost");
+    // compare based on hops
+    NS_LOG_DEBUG("a.GetTxCost(): "<<(int) a.GetTxCost()<<" <= b.GetTxCost(): "<<(int) b.GetTxCost());
+    return a.GetTxCost() <= b.GetTxCost();
 }
 
 bool
@@ -213,6 +233,7 @@ bool
 WDsrRouteCache::UpdateRouteEntry(Ipv4Address dst)
 {
     NS_LOG_FUNCTION(this << dst);
+    NS_LOG_DEBUG("Bruger jeg det her?");
     std::map<Ipv4Address, std::list<WDsrRouteCacheEntry>>::const_iterator i =
         m_sortedRoutes.find(dst);
     if (i == m_sortedRoutes.end())
@@ -227,11 +248,14 @@ WDsrRouteCache::UpdateRouteEntry(Ipv4Address dst)
         successEntry.SetExpireTime(RouteCacheTimeout);
         rtVector.pop_front();
         rtVector.push_back(successEntry);
-        rtVector.sort(CompareRoutesExpire); // sort the route vector first
+        NS_LOG_DEBUG("Bliver der compared? >> 1");
+        rtVector.sort(CompareRoutesHops); // sort the route vector first
         m_sortedRoutes.erase(dst);          // erase the entry first
         /*
          * Save the new route cache along with the destination address in map
          */
+        NS_LOG_DEBUG("Jepsen "<<dst);
+        PrintRouteVector(rtVector);
         std::pair<std::map<Ipv4Address, std::list<WDsrRouteCacheEntry>>::iterator, bool> result =
             m_sortedRoutes.insert(std::make_pair(dst, rtVector));
         return result.second;
@@ -306,7 +330,8 @@ WDsrRouteCache::LookupRoute(Ipv4Address id, WDsrRouteCacheEntry& rt)
                         // We need to add new route entry here
                         std::list<WDsrRouteCacheEntry> newVector;
                         newVector.push_back(changeEntry);
-                        newVector.sort(CompareRoutesExpire); // sort the route vector first
+                        NS_LOG_DEBUG("Bliver der compared? >> 2");
+                        newVector.sort(CompareRoutesHops); // sort the route vector first
                         m_sortedRoutes[id] =
                             newVector; // Only get the first sub route and add it in route cache
                         NS_LOG_INFO("We have a sub-route to " << id << " add it in route cache");
@@ -362,6 +387,8 @@ void
 WDsrRouteCache::RebuildBestRouteTable(Ipv4Address source)
 {
     NS_LOG_FUNCTION(this << source);
+    NS_LOG_DEBUG("**************************************************");
+    NS_LOG_DEBUG("Rebuilding best route table for:  "<<source);
     /**
      * \brief The following are initialize-single-source
      */
@@ -369,18 +396,23 @@ WDsrRouteCache::RebuildBestRouteTable(Ipv4Address source)
     std::map<Ipv4Address, uint32_t> d;
     // @pre preceding node
     std::map<Ipv4Address, Ipv4Address> pre;
+    NS_LOG_DEBUG("------------------- 1");
     for (std::map<Ipv4Address, std::map<Ipv4Address, uint32_t>>::iterator i = m_netGraph.begin();
          i != m_netGraph.end();
          ++i)
     {
         if (i->second.find(source) != i->second.end())
         {
+            NS_LOG_DEBUG("d[i->first] = "<<i->second[source]);   
             d[i->first] = i->second[source];
+            NS_LOG_DEBUG("pre[i->first] = "<<source);
             pre[i->first] = source;
         }
         else
         {
+            NS_LOG_DEBUG("d[i->first] = "<<0xFFFF);
             d[i->first] = MAXWEIGHT;
+            NS_LOG_DEBUG("pre[i->first] = "<<Ipv4Address("255.255.255.255"));
             pre[i->first] = Ipv4Address("255.255.255.255");
         }
     }
@@ -392,34 +424,50 @@ WDsrRouteCache::RebuildBestRouteTable(Ipv4Address source)
     std::map<Ipv4Address, bool> s;
     double temp = MAXWEIGHT;
     Ipv4Address tempip = Ipv4Address("255.255.255.255");
+    
     for (uint32_t i = 0; i < m_netGraph.size(); i++)
     {
+        NS_LOG_DEBUG("------------------- 2");
+        NS_LOG_DEBUG("i = "<<(int)i);
         temp = MAXWEIGHT;
+        NS_LOG_DEBUG("-- 2.1");
+
         for (std::map<Ipv4Address, uint32_t>::const_iterator j = d.begin(); j != d.end(); ++j)
         {
+            
+            NS_LOG_DEBUG("ip = "<<j->first);
             Ipv4Address ip = j->first;
             if (s.find(ip) == s.end())
             {
+                NS_LOG_DEBUG("-- 2.2");
                 /*
                  * \brief The followings are for comparison
                  */
                 if (j->second <= temp)
                 {
+                    NS_LOG_DEBUG("-- 2.3");
+                    NS_LOG_DEBUG("temp = "<<j->second);
                     temp = j->second;
+                    NS_LOG_DEBUG("tempip = "<<ip);
                     tempip = ip;
                 }
             }
         }
         if (!tempip.IsBroadcast())
         {
+            NS_LOG_DEBUG("------------------- 3");
             s[tempip] = true;
             for (std::map<Ipv4Address, uint32_t>::const_iterator k = m_netGraph[tempip].begin();
                  k != m_netGraph[tempip].end();
                  ++k)
             {
+
                 if (s.find(k->first) == s.end() && d[k->first] > d[tempip] + k->second)
                 {
+                    NS_LOG_DEBUG("-- 3.1");
+                    NS_LOG_DEBUG("d[k->first] = "<<d[tempip] + k->second);
                     d[k->first] = d[tempip] + k->second;
+                    NS_LOG_DEBUG("pre[k->first] = "<<tempip);
                     pre[k->first] = tempip;
                 }
                 /*
@@ -431,14 +479,17 @@ WDsrRouteCache::RebuildBestRouteTable(Ipv4Address source)
                  */
                 else if (d[k->first] == d[tempip] + k->second)
                 {
+                    NS_LOG_DEBUG("-- 3.2");
                     std::map<Link, WDsrLinkStab>::iterator oldlink =
                         m_linkCache.find(Link(k->first, pre[k->first]));
                     std::map<Link, WDsrLinkStab>::iterator newlink =
                         m_linkCache.find(Link(k->first, tempip));
                     if (oldlink != m_linkCache.end() && newlink != m_linkCache.end())
                     {
+                        NS_LOG_DEBUG("-- 3.3");
                         if (oldlink->second.GetLinkStability() < newlink->second.GetLinkStability())
                         {
+                            NS_LOG_DEBUG("-- 3.4");
                             NS_LOG_INFO("Select the link with longest expected lifetime");
                             d[k->first] = d[tempip] + k->second;
                             pre[k->first] = tempip;
@@ -454,6 +505,7 @@ WDsrRouteCache::RebuildBestRouteTable(Ipv4Address source)
     }
     // clean the best route table
     m_bestRoutesTable_link.clear();
+    NS_LOG_DEBUG("------------------- 4");
     for (std::map<Ipv4Address, Ipv4Address>::iterator i = pre.begin(); i != pre.end(); ++i)
     {
         // loop for all vertices
@@ -462,6 +514,7 @@ WDsrRouteCache::RebuildBestRouteTable(Ipv4Address source)
 
         if (!i->second.IsBroadcast() && iptemp != source)
         {
+            NS_LOG_DEBUG("-- 4.1");
             while (iptemp != source)
             {
                 route.push_back(iptemp);
@@ -470,6 +523,7 @@ WDsrRouteCache::RebuildBestRouteTable(Ipv4Address source)
             route.push_back(source);
             // Reverse the route
             WDsrRouteCacheEntry::IP_VECTOR reverseroute;
+            NS_LOG_DEBUG("-- 4.2");
             for (WDsrRouteCacheEntry::IP_VECTOR::reverse_iterator j = route.rbegin();
                  j != route.rend();
                  ++j)
@@ -477,6 +531,8 @@ WDsrRouteCache::RebuildBestRouteTable(Ipv4Address source)
                 reverseroute.push_back(*j);
             }
             NS_LOG_LOGIC("Add newly calculated best routes");
+            NS_LOG_DEBUG("-- 4.3");
+            NS_LOG_DEBUG("Add newly calculated best routes");
             PrintVector(reverseroute);
             m_bestRoutesTable_link[i->first] = reverseroute;
         }
@@ -716,29 +772,34 @@ WDsrRouteCache::UseExtends(WDsrRouteCacheEntry::IP_VECTOR rt)
 bool
 WDsrRouteCache::AddRoute(WDsrRouteCacheEntry& rt)
 {
+    
     NS_LOG_FUNCTION(this);
     Purge();
     std::list<WDsrRouteCacheEntry> rtVector; // Declare the route cache entry vector
     Ipv4Address dst = rt.GetDestination();
     std::vector<Ipv4Address> route = rt.GetVector();
 
-    NS_LOG_DEBUG("The route destination we have " << dst);
+    NS_LOG_DEBUG("  " << dst);
     std::map<Ipv4Address, std::list<WDsrRouteCacheEntry>>::const_iterator i =
         m_sortedRoutes.find(dst);
 
     if (i == m_sortedRoutes.end())
     {
+        NS_LOG_DEBUG("------------------ 1");
         rtVector.push_back(rt);
         m_sortedRoutes.erase(dst); // Erase the route entries for dst first
         /**
          * Save the new route cache along with the destination address in map
          */
+        NS_LOG_DEBUG("Add route with route vector:");
+        PrintRouteVector(rtVector);
         std::pair<std::map<Ipv4Address, std::list<WDsrRouteCacheEntry>>::iterator, bool> result =
             m_sortedRoutes.insert(std::make_pair(dst, rtVector));
         return result.second;
     }
     else
     {
+        NS_LOG_DEBUG("------------------ 2");
         rtVector = i->second;
         NS_LOG_DEBUG("The existing route size " << rtVector.size() << " for destination address "
                                                 << dst);
@@ -747,42 +808,100 @@ WDsrRouteCache::AddRoute(WDsrRouteCacheEntry& rt)
          */
         if (rtVector.size() >= m_maxEntriesEachDst)
         {
+            NS_LOG_DEBUG("-------- 2.1");
             RemoveLastEntry(rtVector); // Drop the last entry for the sorted route cache, the route
                                        // has already been sorted
         }
 
         if (FindSameRoute(rt, rtVector))
         {
+            NS_LOG_DEBUG("-------- 2.2");
             NS_LOG_DEBUG(
                 "Find same vector, the FindSameRoute function will update the route expire time");
             return true;
         }
         else
         {
+            NS_LOG_DEBUG("-------- 2.3");
             // Check if the expire time for the new route has expired or not
             if (rt.GetExpireTime() > Time(0))
             {
                 rtVector.push_back(rt);
                 // This sort function will sort the route cache entries based on the size of route
                 // in each of the route entries
-                rtVector.sort(CompareRoutesExpire);
-                NS_LOG_DEBUG("The first time" << rtVector.front().GetExpireTime().As(Time::S)
-                                              << " The second time "
-                                              << rtVector.back().GetExpireTime().As(Time::S));
-                NS_LOG_DEBUG("The first hop" << rtVector.front().GetVector().size()
-                                             << " The second hop "
-                                             << rtVector.back().GetVector().size());
-                m_sortedRoutes.erase(dst); // erase the route entries for dst first
+                
+
+                // ! WDSR-M Routing protocol
+                NS_LOG_DEBUG("Testing if lowestBat > threshold");
+                int threshold = 120 ;
+                std::list<WDsrRouteCacheEntry> Atable; // Declare the route cache entry vector
+                for (std::list<WDsrRouteCacheEntry>::iterator i = rtVector.begin(); i != rtVector.end(); ++i)
+                {
+                    NS_LOG_DEBUG("lowestBat: "<<(int) i->GetLowestBat());
+                    if (i->GetLowestBat() > threshold)
+                    {
+                        NS_LOG_DEBUG("-- Adding lowestBat: "<<(int) i->GetLowestBat());
+                        Atable.push_back(rt);
+                        NS_LOG_DEBUG("Size of A table: "<<Atable.size());
+                    }
+                }
+                if (Atable.size() != 0)
+                {
+                    NS_LOG_DEBUG("A table is not empty, running MMBCR");
+                    Atable.sort(CompareLowestBat);
+                } else 
+                {
+                    NS_LOG_DEBUG("A table is empty, running MTRP");
+                    rtVector.sort(CompareTxCost); 
+                }
+
+                
+                
+                
                 /**
                  * Save the new route cache along with the destination address in map
                  */
-                std::pair<std::map<Ipv4Address, std::list<WDsrRouteCacheEntry>>::iterator, bool>
+                std::pair<std::map<Ipv4Address, std::list<WDsrRouteCacheEntry>>::iterator, bool> result;
+                NS_LOG_DEBUG("Added new link:");
+                if (Atable.size() != 0)
+                {
+                    NS_LOG_DEBUG("The first vector time " << Atable.front().GetExpireTime().As(Time::S)
+                                              << " The second vector time "
+                                              << Atable.back().GetExpireTime().As(Time::S));
+                    NS_LOG_DEBUG("The first vector hop " << Atable.front().GetVector().size()
+                                                 << " The second vector hop "
+                                                 << Atable.back().GetVector().size());
+                    NS_LOG_DEBUG("The first vector lowestBat " << (int) Atable.front().GetLowestBat()
+                                                 << " The second vector lowestBat "
+                                                 << (int) Atable.back().GetLowestBat());
+                    NS_LOG_DEBUG("The first vector txCost " << (int) Atable.front().GetTxCost()
+                                                 << " The second vector txCost "
+                                                 << (int) Atable.back().GetTxCost());
+                    m_sortedRoutes.erase(dst); // erase the route entries for dst first
+                    result = m_sortedRoutes.insert(std::make_pair(dst, Atable));
+                } else
+                {
+                    NS_LOG_DEBUG("The first vector time " << rtVector.front().GetExpireTime().As(Time::S)
+                                              << " The second vector time "
+                                              << rtVector.back().GetExpireTime().As(Time::S));
+                    NS_LOG_DEBUG("The first vector hop " << rtVector.front().GetVector().size()
+                                                 << " The second vector hop "
+                                                 << rtVector.back().GetVector().size());
+                    NS_LOG_DEBUG("The first vector lowestBat " << (int) rtVector.front().GetLowestBat()
+                                                 << " The second vector lowestBat "
+                                                 << (int) rtVector.back().GetLowestBat());
+                    NS_LOG_DEBUG("The first vector txCost " << (int) rtVector.front().GetTxCost()
+                                                 << " The second vector txCost "
+                                                 << (int) rtVector.back().GetTxCost());
+                    m_sortedRoutes.erase(dst); // erase the route entries for dst first
                     result = m_sortedRoutes.insert(std::make_pair(dst, rtVector));
+                }
                 return result.second;
             }
             else
             {
                 NS_LOG_INFO("The newly found route is already expired");
+                NS_LOG_DEBUG("The newly found route is already expired");
             }
         }
     }
@@ -811,7 +930,8 @@ WDsrRouteCache::FindSameRoute(WDsrRouteCacheEntry& rt, std::list<WDsrRouteCacheE
                 i->SetExpireTime(rt.GetExpireTime());
             }
             m_sortedRoutes.erase(rt.GetDestination()); // erase the entry first
-            rtVector.sort(CompareRoutesExpire);        // sort the route vector first
+            NS_LOG_DEBUG("Bliver der compared? >> 4");
+            rtVector.sort(CompareRoutesHops);        // sort the route vector first
             /*
              * Save the new route cache along with the destination address in map
              */
@@ -992,7 +1112,8 @@ WDsrRouteCache::DeleteAllRoutesIncludeLink(Ipv4Address errorSrc,
                 /*
                  * Save the new route cache along with the destination address in map
                  */
-                rtVector.sort(CompareRoutesExpire);
+                NS_LOG_DEBUG("Bliver der compared? >> 5");
+                rtVector.sort(CompareRoutesHops);
                 m_sortedRoutes[address] = rtVector;
             }
             else
@@ -1032,6 +1153,7 @@ WDsrRouteCache::PrintRouteVector(std::list<WDsrRouteCacheEntry> route)
     {
         std::vector<Ipv4Address> path = i->GetVector();
         NS_LOG_INFO("Route NO. ");
+        NS_LOG_DEBUG("Route NO. ");
         PrintVector(path);
     }
 }
@@ -1043,7 +1165,7 @@ WDsrRouteCache::Purge()
     // Trying to purge the route cache
     if (m_sortedRoutes.empty())
     {
-        NS_LOG_DEBUG("The route cache is empty");
+        NS_LOG_DEBUG("The route cache is empty :)");
         return;
     }
     for (std::map<Ipv4Address, std::list<WDsrRouteCacheEntry>>::iterator i = m_sortedRoutes.begin();

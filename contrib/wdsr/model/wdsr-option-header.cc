@@ -624,7 +624,6 @@ WDsrOptionRrepHeader::Serialize(Buffer::Iterator start) const
     i.WriteU8(GetLength());
     NS_LOG_DEBUG(">>>>>>> Data inside m_lowestBat: "<<(int)m_lowestBat);
     NS_LOG_DEBUG(">>>>>>> Data inside m_txCost: "<<(int)m_txCost);
-    NS_LOG_DEBUG(">>>>>>> Data inside m_txCost after adding txCost: "<<(int)(m_txCost));
     i.WriteU8(GetLowestBat());
     i.WriteU8(GetTxCost());
 

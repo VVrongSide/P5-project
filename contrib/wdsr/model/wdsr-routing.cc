@@ -99,7 +99,7 @@ const uint8_t WDsrRouting::PROT_NUMBER = 48;
 /*
 * \brief The max capacity for all node batteries
 */
-double initialJoules2 = 3000;
+double initialEnergy2 = 100;
 /*
  * The extension header is the fixed size wdsr header, it is response for recognizing WDSR option
  types
@@ -297,7 +297,7 @@ WDsrRouting::GetTypeId()
                           MakeUintegerChecker<uint32_t>())
             .AddAttribute("CacheType",
                           "Use Link Cache or use Path Cache",
-                          StringValue("LinkCache"),
+                          StringValue("PathCache"),
                           MakeStringAccessor(&WDsrRouting::m_cacheType),
                           MakeStringChecker())
             .AddAttribute("StabilityDecrFactor",
@@ -2994,12 +2994,11 @@ WDsrRouting::SendInitialRequest(Ipv4Address source, Ipv4Address destination, uin
     wdsrRoutingHeader.SetPayloadLength(length + 2);
 
     NS_LOG_DEBUG("**************************************");
-    NS_LOG_DEBUG("Is this it?!");
     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
     if (nodeEnergySource != 0){ 
         rreqHeader.CalcLowestBat(/*lowestBat=*/lowestBat,
                            /*remainingBattery=*/remainingBattery,
-                           /*initialJoules=*/initialJoules2);
+                           /*initialEnergy=*/initialEnergy2);
         rreqHeader.SetTxCost(txCost+placeholder);
     } else {
         NS_LOG_DEBUG(">>> RREQTEST: No <BasicEnergySource> implemented yet");
@@ -3465,7 +3464,7 @@ WDsrRouting::SendGratuitousReply(Ipv4Address source,
         if (nodeEnergySource != 0){ 
             rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
                                /*remainingBattery=*/remainingBattery,
-                               /*initialJoules=*/initialJoules2);
+                               /*initialEnergy=*/initialEnergy2);
             rrep.SetTxCost(txCost+placeholder);
         } else {
             NS_LOG_DEBUG(">>> RREPTEST: No <BasicEnergySource> implemented yet");
