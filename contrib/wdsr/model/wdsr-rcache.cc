@@ -831,28 +831,41 @@ WDsrRouteCache::AddRoute(WDsrRouteCacheEntry& rt)
                 // in each of the route entries
                 
 
-                // ! WDSR-M Routing protocol
-                NS_LOG_DEBUG("Testing if lowestBat > threshold");
+                // ! WDSR-M Routing protocol (CCMBCR)
+                
                 int threshold = 120 ;
-                std::list<WDsrRouteCacheEntry> Atable; // Declare the route cache entry vector
-                for (std::list<WDsrRouteCacheEntry>::iterator i = rtVector.begin(); i != rtVector.end(); ++i)
+                bool aboveThreshold = 0;
+                NS_LOG_DEBUG("Testing if lowestBat > threshold");
+                for (std::list<WDsrRouteCacheEntry>::iterator j = rtVector.begin(); j != rtVector.end(); ++j)
                 {
-                    NS_LOG_DEBUG("lowestBat: "<<(int) i->GetLowestBat());
-                    if (i->GetLowestBat() > threshold)
+                    NS_LOG_DEBUG("lowestBat: "<<(int) j->GetLowestBat());
+                    if (j->GetLowestBat() > threshold)
                     {
-                        NS_LOG_DEBUG("-- Adding lowestBat: "<<(int) i->GetLowestBat());
-                        Atable.push_back(rt);
-                        NS_LOG_DEBUG("Size of A table: "<<Atable.size());
+                        NS_LOG_DEBUG("-- Above threshold");
+                        aboveThreshold = 1;
                     }
                 }
-                if (Atable.size() != 0)
+                if (aboveThreshold)
                 {
-                    NS_LOG_DEBUG("A table is not empty, running MMBCR");
-                    Atable.sort(CompareLowestBat);
+                    NS_LOG_DEBUG("A table is not empty, running MTPR");
+                    NS_LOG_DEBUG("Removing all lowestBat < "<<(int) threshold);
+                    NS_LOG_DEBUG("Number of vectors at start is: "<<rtVector.size());
+                    for (std::list<WDsrRouteCacheEntry>::iterator j = rtVector.begin(); j != rtVector.end(); ++j)
+                    {
+                        NS_LOG_DEBUG("lowestBat: "<<(int) j->GetLowestBat());
+                        if (j->GetLowestBat() < threshold)
+                        {
+                            NS_LOG_DEBUG("-- Removed");
+                            j = rtVector.erase(j);
+                            --j;
+                            NS_LOG_DEBUG("Updated number of vectors: "<<rtVector.size());
+                        }
+                    }
+                    rtVector.sort(CompareTxCost);
                 } else 
                 {
                     NS_LOG_DEBUG("A table is empty, running MTRP");
-                    rtVector.sort(CompareTxCost); 
+                    rtVector.sort(CompareLowestBat); 
                 }
 
                 
@@ -861,41 +874,24 @@ WDsrRouteCache::AddRoute(WDsrRouteCacheEntry& rt)
                 /**
                  * Save the new route cache along with the destination address in map
                  */
-                std::pair<std::map<Ipv4Address, std::list<WDsrRouteCacheEntry>>::iterator, bool> result;
                 NS_LOG_DEBUG("Added new link:");
-                if (Atable.size() != 0)
-                {
-                    NS_LOG_DEBUG("The first vector time " << Atable.front().GetExpireTime().As(Time::S)
-                                              << " The second vector time "
-                                              << Atable.back().GetExpireTime().As(Time::S));
-                    NS_LOG_DEBUG("The first vector hop " << Atable.front().GetVector().size()
-                                                 << " The second vector hop "
-                                                 << Atable.back().GetVector().size());
-                    NS_LOG_DEBUG("The first vector lowestBat " << (int) Atable.front().GetLowestBat()
-                                                 << " The second vector lowestBat "
-                                                 << (int) Atable.back().GetLowestBat());
-                    NS_LOG_DEBUG("The first vector txCost " << (int) Atable.front().GetTxCost()
-                                                 << " The second vector txCost "
-                                                 << (int) Atable.back().GetTxCost());
-                    m_sortedRoutes.erase(dst); // erase the route entries for dst first
-                    result = m_sortedRoutes.insert(std::make_pair(dst, Atable));
-                } else
-                {
-                    NS_LOG_DEBUG("The first vector time " << rtVector.front().GetExpireTime().As(Time::S)
-                                              << " The second vector time "
-                                              << rtVector.back().GetExpireTime().As(Time::S));
-                    NS_LOG_DEBUG("The first vector hop " << rtVector.front().GetVector().size()
-                                                 << " The second vector hop "
-                                                 << rtVector.back().GetVector().size());
-                    NS_LOG_DEBUG("The first vector lowestBat " << (int) rtVector.front().GetLowestBat()
-                                                 << " The second vector lowestBat "
-                                                 << (int) rtVector.back().GetLowestBat());
-                    NS_LOG_DEBUG("The first vector txCost " << (int) rtVector.front().GetTxCost()
-                                                 << " The second vector txCost "
-                                                 << (int) rtVector.back().GetTxCost());
-                    m_sortedRoutes.erase(dst); // erase the route entries for dst first
-                    result = m_sortedRoutes.insert(std::make_pair(dst, rtVector));
-                }
+    
+                NS_LOG_DEBUG("The first vector time " << rtVector.front().GetExpireTime().As(Time::S)
+                                          << " The second vector time "
+                                          << rtVector.back().GetExpireTime().As(Time::S));
+                NS_LOG_DEBUG("The first vector hop " << rtVector.front().GetVector().size()
+                                             << " The second vector hop "
+                                             << rtVector.back().GetVector().size());
+                NS_LOG_DEBUG("The first vector lowestBat " << (int) rtVector.front().GetLowestBat()
+                                             << " The second vector lowestBat "
+                                             << (int) rtVector.back().GetLowestBat());
+                NS_LOG_DEBUG("The first vector txCost " << (int) rtVector.front().GetTxCost()
+                                             << " The second vector txCost "
+                                             << (int) rtVector.back().GetTxCost());
+                m_sortedRoutes.erase(dst); // erase the route entries for dst first
+                std::pair<std::map<Ipv4Address, std::list<WDsrRouteCacheEntry>>::iterator, bool> 
+                result = m_sortedRoutes.insert(std::make_pair(dst, rtVector));
+
                 return result.second;
             }
             else
