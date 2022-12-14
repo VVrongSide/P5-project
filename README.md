@@ -12,7 +12,7 @@ This project uses NS3 as a base for testing weighted routing for mesh networks.
 ⠀⠙⢿⣷⣶⣶⡿⠁⠀⠈⣿⣿⠟⠀⣿⣿⠇⠀⠈⠻⣿⣶⣾⡿⠋⠀
 
           \
-            \                     " Tag min memory fejl din slut! "
+            \                     " <Signals.SIGSEGV: 11> din slut! "
               \                        /
                 \                     /
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣤⣤⣤⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀/⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
