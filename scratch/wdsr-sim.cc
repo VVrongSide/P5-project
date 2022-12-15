@@ -48,15 +48,25 @@
 
 using namespace ns3;
 
+int depletedN;
+
 Ptr<GnuplotAggregator> aggregator;
 void TotalEnergy (std::string context, double oldValue, double totalEnergy) {
     aggregator->Write2d(context, Simulator::Now().GetSeconds(), totalEnergy);
-    //NS_LOG_UNCOND ("%INFO TimeStamp: "<<Simulator::Now ().GetSeconds ()<<" secs Total energy consumed Node: "<<context<<" "<<totalEnergy<< " Joules");
+    printf("The current time is: %lf \n", Simulator::Now().GetSeconds());
+    // NS_LOG_UNCOND ("%INFO TimeStamp: "<<Simulator::Now ().GetSeconds ()<<" secs Total energy
+    // consumed Node: "<<context<<" "<<totalEnergy<< " Joules");
 }
 
-void depletion(double value){
-    NS_LOG_UNCOND ("i got value:" << value);
+Ptr<GnuplotAggregator> depletedAggregator;
+void isDepleted (bool oldStatus, bool depleted){
+    if (depleted){
+        depletedN--;
+        NS_ASSERT(depletedN >= 0);
+        depletedAggregator->Write2d("Nodes Alive", Simulator::Now().GetSeconds(), depletedN);
+    }
 }
+
 
 NS_LOG_COMPONENT_DEFINE("WDsrTest");
 
@@ -89,28 +99,29 @@ main(int argc, char* argv[])
   LogComponentEnable ("WDsrErrorBuffer", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrNetworkQueue", LOG_LEVEL_ALL);
 #endif
-
+    //LogComponentEnable("WifiRadioEnergyModel", LOG_DEBUG);
     NS_LOG_INFO("creating the nodes");
 
     // General parameters
     uint32_t nWifis = 20;
+    depletedN = (int)nWifis;
     uint32_t nSinks = 10;
-    double TotalTime = 200.0;
-    double dataTime = 190.0;
+    double TotalTime = 20.0;
+    double dataTime = 19.0;
     double ppers = 100;
     uint32_t packetSize = 1024;
-    double dataStart = 1.0; // start sending data at 10s
+    double dataStart = 0.0; // start sending data at 10s
     uint32_t seed = 2;
     int runDSR = 0;
 
     //energymodel
-    double initialEnergy = 100; // joule
+    double initialEnergy = 10; // joule
     double voltage = 3.0;       // volts
-    double txPowerEnd = 36.0;   // dbm
-    double txPowerStart = txPowerEnd;  // dbm
-    double idleCurrent = 0.273; // Ampere
-    double txCurrent = DbmToW(txPowerEnd)/voltage*1.5;   // Ampere
-
+    //double txPowerEnd = 36.0;   // dbm
+    //double txPowerStart = txPowerEnd;  // dbm
+    //double idleCurrent = 0.273; // Ampere
+    double txCurrent = 4/voltage;   // Ampere
+    
     std::string rate = "1Mbps";
     std::string dataMode("DsssRate11Mbps");
     std::string phyMode("DsssRate11Mbps");
@@ -126,15 +137,20 @@ main(int argc, char* argv[])
     cmd.Parse(argc, argv);
 
     for (int dsr = 0; dsr < (1+runDSR); dsr++) { //1 for only WDSR 2 for Compare.
-    printf("imma transmit with %.2lfW for this test. The test is %s\n",  DbmToW(txPowerEnd), dsr ? "dsr": "wdsr");
+    //printf("imma transmit with %.2lfW for this test. The test is %s\n",  DbmToW(txPowerEnd), dsr ? "dsr": "wdsr");
 
     /********* Gnuplot ***********/
-    std::string plotXAxisHeading = "Time (seconds)";
-    std::string plotYAxisHeading = "Energy";
+
     aggregator = CreateObject<GnuplotAggregator>(dsr ? "Dsr-plot" : "Wdsr-plot");
     aggregator->SetTerminal("pdf");
     aggregator->SetTitle("Energy remaining");
-    aggregator->SetLegend(plotXAxisHeading, plotYAxisHeading);
+    aggregator->SetLegend("Time (seconds)", "Energy");  // (x-axis, y-axis)
+    
+    depletedAggregator = CreateObject<GnuplotAggregator>(dsr ? "DsrAlive-plot" : "WdsrAlive-plot");
+    depletedAggregator->SetTerminal("pdf");
+    depletedAggregator->SetTitle("Nodes Alive");
+    depletedAggregator->SetLegend("Time (seconds)", "Number of nodes alive");
+    
     /******************************/
 
     SeedManager::SetSeed(10);
@@ -158,8 +174,8 @@ main(int argc, char* argv[])
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
     wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel",
                                     "Frequency", DoubleValue(2.45e9));
-    wifiPhy.Set("TxPowerStart", DoubleValue(txPowerStart));
-    wifiPhy.Set("TxPowerEnd", DoubleValue(txPowerEnd));
+    //wifiPhy.Set("TxPowerStart", DoubleValue(txPowerStart));
+    //wifiPhy.Set("TxPowerEnd", DoubleValue(txPowerEnd));
     //wifiPhy.Set("TxPowerLevels", UintegerValue(nTxPowerLevels));
     wifiPhy.SetChannel(wifiChannel.Create());
 
@@ -184,8 +200,8 @@ main(int argc, char* argv[])
     RngSeedManager::SetRun(1);
     MobilityHelper mobility;
     mobility.SetPositionAllocator("ns3::RandomBoxPositionAllocator",
-                                    "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=15000]"),
-                                    "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=15000]"),
+                                    "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=1500]"),
+                                    "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=1500]"),
                                     "Z", StringValue("ns3::UniformRandomVariable[Min=1.0|Max=50.0]"));
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(adhocNodes);
@@ -202,16 +218,16 @@ main(int argc, char* argv[])
     // SwitchingCurrentA: The default radio Channel Switch current in Ampere.
     // SleepCurrentA:     The radio Sleep current in Ampere.
     // TxCurrentModel:    A pointer to the attached tx current model.
-    energyHelper.Set("IdleCurrentA", DoubleValue(idleCurrent));
+    //energyHelper.Set("IdleCurrentA", DoubleValue(idleCurrent));
     energyHelper.Set("TxCurrentA", DoubleValue(txCurrent));
-    double eta = DbmToW(txPowerStart) / ((txCurrent - idleCurrent) * voltage);
-    NS_LOG_UNCOND("eta feta is: " << eta);
-    energyHelper.SetTxCurrentModel("ns3::LinearWifiTxCurrentModel",
-                                    "Voltage", DoubleValue(voltage),
-                                    "IdleCurrent", DoubleValue(idleCurrent),
-                                    "Eta", DoubleValue(eta));
-    WifiRadioEnergyModel::WifiRadioEnergyDepletionCallback callback = MakeCallback(&depletion);
-    energyHelper.SetDepletionCallback(callback);
+    //double eta = DbmToW(txPowerStart) / ((txCurrent - idleCurrent) * voltage);
+    //NS_LOG_UNCOND("eta feta is: " << eta);
+    //energyHelper.SetTxCurrentModel("ns3::LinearWifiTxCurrentModel",
+    //                                "Voltage", DoubleValue(voltage),
+    //                                "IdleCurrent", DoubleValue(idleCurrent),
+    //                                "Eta", DoubleValue(eta));
+    //WifiRadioEnergyModel::WifiRadioEnergyDepletionCallback callback = MakeCallback(&depletion);
+    //energyHelper.SetDepletionCallback(callback);
 
 
     for (uint32_t i = 0; i < adhocNodes.GetN();i++){
@@ -237,6 +253,19 @@ main(int argc, char* argv[])
     }
     aggregator->Enable();
     /********************************************/
+    /************CSV generator depleted node **********/
+    for (uint32_t i = 0; i < adhocNodes.GetN(); ++i)
+    {
+        Ptr<BasicEnergySource> NodeEnergySource = adhocNodes.Get(i)->GetObject<BasicEnergySource>();
+        if (NodeEnergySource != NULL) {
+            std::string context = std::to_string(i);
+            NodeEnergySource->TraceConnectWithoutContext("Depleted",
+                                            MakeCallback(&isDepleted));
+        }
+    }
+    depletedAggregator->Add2dDataset("Nodes Alive", std::string("Nodes Alive: "));
+    depletedAggregator->Set2dDatasetStyle("Nodes Alive", Gnuplot2dDataset::Style::STEPS);
+    depletedAggregator->Enable();
 
     InternetStackHelper internet;
     DsrMainHelper dsrMain;

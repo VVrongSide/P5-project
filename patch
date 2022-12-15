@@ -1,0 +1,540 @@
+diff --git a/contrib/.gitignore b/contrib/.gitignore
+deleted file mode 100644
+index 2f1d1143b..000000000
+--- a/contrib/.gitignore
++++ /dev/null
+@@ -1,5 +0,0 @@
+-# Ignore everything by default, contrib sources are coming from other places
+-*
+-
+-# Include specific files that should be tracked by Git
+-!.gitignore
+diff --git a/scratch/.gitignore b/scratch/.gitignore
+deleted file mode 100644
+index 7d959a29d..000000000
+--- a/scratch/.gitignore
++++ /dev/null
+@@ -1,7 +0,0 @@
+-# Ignore everything on scratch by default, except the provided examples
+-/*
+-!.gitignore
+-
+-!subdir/
+-!scratch-simulator.cc
+-!CMakeLists.txt
+diff --git a/scratch/CMakeLists.txt b/scratch/CMakeLists.txt
+deleted file mode 100644
+index 7d05f6022..000000000
+--- a/scratch/CMakeLists.txt
++++ /dev/null
+@@ -1,91 +0,0 @@
+-set(target_prefix scratch_)
+-
+-function(create_scratch source_files)
+-  # Return early if no sources in the subdirectory
+-  list(LENGTH source_files number_sources)
+-  if(number_sources EQUAL 0)
+-    return()
+-  endif()
+-
+-  # If the scratch has more than a source file, we need to find the source with
+-  # the main function
+-  set(scratch_src)
+-  foreach(source_file ${source_files})
+-    file(READ ${source_file} source_file_contents)
+-    string(REGEX MATCHALL "main[(| (]" main_position "${source_file_contents}")
+-    if(CMAKE_MATCH_0)
+-      set(scratch_src ${source_file})
+-    endif()
+-  endforeach()
+-
+-  if(NOT scratch_src)
+-    return()
+-  endif()
+-
+-  # Get parent directory name
+-  get_filename_component(scratch_dirname ${scratch_src} DIRECTORY)
+-  string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "" scratch_dirname
+-                 "${scratch_dirname}"
+-  )
+-  string(REPLACE "/" "_" scratch_dirname "${scratch_dirname}")
+-
+-  # Get source name
+-  get_filename_component(scratch_name ${scratch_src} NAME_WE)
+-
+-  set(target_prefix scratch_)
+-  if(scratch_dirname)
+-    # Join the names together if dirname is not the scratch folder
+-    set(target_prefix scratch${scratch_dirname}_)
+-  endif()
+-
+-  # Get source absolute path and transform into relative path
+-  get_filename_component(scratch_src ${scratch_src} ABSOLUTE)
+-  get_filename_component(scratch_absolute_directory ${scratch_src} DIRECTORY)
+-  string(REPLACE "${PROJECT_SOURCE_DIR}" "${CMAKE_OUTPUT_DIRECTORY}"
+-                 scratch_directory ${scratch_absolute_directory}
+-  )
+-  build_exec(
+-          EXECNAME ${scratch_name}
+-          EXECNAME_PREFIX ${target_prefix}
+-          SOURCE_FILES "${source_files}"
+-          LIBRARIES_TO_LINK "${ns3-libs}" "${ns3-contrib-libs}"
+-          EXECUTABLE_DIRECTORY_PATH ${scratch_directory}/
+-  )
+-endfunction()
+-
+-# Scan *.cc files in ns-3-dev/scratch and build a target for each
+-file(GLOB single_source_file_scratches CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/[^.]*.cc)
+-foreach(scratch_src ${single_source_file_scratches})
+-  create_scratch(${scratch_src})
+-endforeach()
+-
+-# Scan *.cc files in ns-3-dev/scratch subdirectories and build a target for each
+-# subdirectory
+-file(
+-  GLOB_RECURSE scratch_subdirectories
+-  CONFIGURE_DEPENDS
+-  LIST_DIRECTORIES true
+-  ${CMAKE_CURRENT_SOURCE_DIR}/**
+-)
+-# Filter out files
+-foreach(entry ${scratch_subdirectories})
+-  if(NOT (IS_DIRECTORY ${entry}))
+-    list(REMOVE_ITEM scratch_subdirectories ${entry})
+-  endif()
+-endforeach()
+-
+-foreach(subdir ${scratch_subdirectories})
+-  if(EXISTS ${subdir}/CMakeLists.txt)
+-    # If the subdirectory contains a CMakeLists.txt file
+-    # we let the CMake file manage the source files
+-    #
+-    # Use this if you want to link to external libraries
+-    # without creating a module
+-    add_subdirectory(${subdir})
+-  else()
+-    # Otherwise we pick all the files in the subdirectory
+-    # and create a scratch for them automatically
+-    file(GLOB scratch_sources CONFIGURE_DEPENDS ${subdir}/[^.]*.cc)
+-    create_scratch("${scratch_sources}")
+-  endif()
+-endforeach()
+diff --git a/scratch/scratch-simulator.cc b/scratch/scratch-simulator.cc
+deleted file mode 100644
+index 8a4b44bfd..000000000
+--- a/scratch/scratch-simulator.cc
++++ /dev/null
+@@ -1,32 +0,0 @@
+-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+-/*
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 2 as
+- * published by the Free Software Foundation;
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+- */
+-
+-#include "ns3/core-module.h"
+-
+-using namespace ns3;
+-
+-NS_LOG_COMPONENT_DEFINE("ScratchSimulator");
+-
+-int
+-main(int argc, char* argv[])
+-{
+-    NS_LOG_UNCOND("Scratch Simulator");
+-
+-    Simulator::Run();
+-    Simulator::Destroy();
+-
+-    return 0;
+-}
+diff --git a/scratch/subdir/scratch-subdir-additional-header.cc b/scratch/subdir/scratch-subdir-additional-header.cc
+deleted file mode 100644
+index e77868fcc..000000000
+--- a/scratch/subdir/scratch-subdir-additional-header.cc
++++ /dev/null
+@@ -1,31 +0,0 @@
+-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+-/*
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 2 as
+- * published by the Free Software Foundation;
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+- */
+-
+-// This file contains the implementation of the functions declared in the
+-// corresponding header file.
+-
+-#include "scratch-subdir-additional-header.h"
+-
+-namespace ns3
+-{
+-
+-std::string
+-ScratchSubdirGetMessage()
+-{
+-    return "Scratch Subdir";
+-}
+-
+-} // namespace ns3
+diff --git a/scratch/subdir/scratch-subdir-additional-header.h b/scratch/subdir/scratch-subdir-additional-header.h
+deleted file mode 100644
+index fe3873e8c..000000000
+--- a/scratch/subdir/scratch-subdir-additional-header.h
++++ /dev/null
+@@ -1,33 +0,0 @@
+-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+-/*
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 2 as
+- * published by the Free Software Foundation;
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+- */
+-
+-// This header does not provide much functionality but is meant to demonstrate how,
+-// in a scratch subdirectory, one can create new programs that are implemented
+-// in multiple files and headers.
+-
+-#include <string>
+-
+-namespace ns3
+-{
+-
+-/**
+- * Get a message from the subdir.
+- *
+- * \return The message from the subdir
+- */
+-std::string ScratchSubdirGetMessage();
+-
+-} // namespace ns3
+diff --git a/scratch/subdir/scratch-subdir.cc b/scratch/subdir/scratch-subdir.cc
+deleted file mode 100644
+index d4fb601d7..000000000
+--- a/scratch/subdir/scratch-subdir.cc
++++ /dev/null
+@@ -1,51 +0,0 @@
+-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+-/*
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 2 as
+- * published by the Free Software Foundation;
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+- */
+-
+-// This example shows how to create new simulations that are implemented in
+-// multiple files and headers. The structure of this simulation project
+-// is as follows:
+-//
+-// scratch/
+-// |  subdir/
+-// |  |  - scratch-subdir.cc                   // Main simulation file
+-// |  |  - scratch-subdir-additional-header.h  // Additional header
+-// |  |  - scratch-subdir-additional-header.cc // Additional header implementation
+-//
+-// This file contains the main() function, which calls an external function
+-// defined in the "scratch-subdir-additional-header.h" header file and
+-// implemented in "scratch-subdir-additional-header.cc".
+-
+-#include "scratch-subdir-additional-header.h"
+-
+-#include "ns3/core-module.h"
+-
+-#include <string>
+-
+-using namespace ns3;
+-
+-NS_LOG_COMPONENT_DEFINE("ScratchSubdir");
+-
+-int
+-main(int argc, char* argv[])
+-{
+-    std::string message = ScratchSubdirGetMessage();
+-    NS_LOG_UNCOND(message);
+-
+-    Simulator::Run();
+-    Simulator::Destroy();
+-
+-    return 0;
+-}
+diff --git a/src/energy/model/basic-energy-source.cc b/src/energy/model/basic-energy-source.cc
+index ebe3d5ab7..b2def7b21 100644
+--- a/src/energy/model/basic-energy-source.cc
++++ b/src/energy/model/basic-energy-source.cc
+@@ -72,7 +72,11 @@ BasicEnergySource::GetTypeId()
+             .AddTraceSource("RemainingEnergy",
+                             "Remaining energy at BasicEnergySource.",
+                             MakeTraceSourceAccessor(&BasicEnergySource::m_remainingEnergyJ),
+-                            "ns3::TracedValueCallback::Double");
++                            "ns3::TracedValueCallback::Double")
++            .AddTraceSource("Depleted",
++                            "Is the source depleted?",
++                            MakeTraceSourceAccessor(&BasicEnergySource::m_depleted),
++                            "ns3::TracedValueCallback::bool");
+     return tid;
+ }
+ 
+@@ -157,7 +161,9 @@ BasicEnergySource::UpdateEnergySource()
+     NS_LOG_DEBUG("BasicEnergySource:Updating remaining energy.");
+ 
+     double remainingEnergy = m_remainingEnergyJ;
+-    CalculateRemainingEnergy();
++    if (!m_depleted){
++        CalculateRemainingEnergy();
++    }
+ 
+     m_lastUpdateTime = Simulator::Now();
+ 
+@@ -207,6 +213,7 @@ BasicEnergySource::HandleEnergyDrainedEvent()
+ {
+     NS_LOG_FUNCTION(this);
+     NS_LOG_DEBUG("BasicEnergySource:Energy depleted!");
++    NS_LOG_DEBUG ("%INFO TimeStamp: "<<Simulator::Now ().GetSeconds ()<<" secs ");
+     NotifyEnergyDrained(); // notify DeviceEnergyModel objects
+ }
+ 
+diff --git a/src/energy/model/basic-energy-source.h b/src/energy/model/basic-energy-source.h
+index 708aad1f5..3db416e06 100644
+--- a/src/energy/model/basic-energy-source.h
++++ b/src/energy/model/basic-energy-source.h
+@@ -149,7 +149,7 @@ class BasicEnergySource : public EnergySource
+      * set to true when the remaining energy goes below the low threshold,
+      * set to false again when the remaining energy exceeds the high threshold
+      */
+-    bool m_depleted;
++    TracedValue<bool> m_depleted;
+     TracedValue<double> m_remainingEnergyJ; //!< remaining energy, in Joules
+     EventId m_energyUpdateEvent;            //!< energy update event
+     Time m_lastUpdateTime;                  //!< last update time
+diff --git a/src/wifi/model/phy-entity.cc b/src/wifi/model/phy-entity.cc
+index f2cf6cf87..a312cb63f 100644
+--- a/src/wifi/model/phy-entity.cc
++++ b/src/wifi/model/phy-entity.cc
+@@ -774,8 +774,11 @@ PhyEntity::RxPayloadFailed(Ptr<const WifiPsdu> psdu, double snr, const WifiTxVec
+ void
+ PhyEntity::DoEndReceivePayload(Ptr<const WifiPpdu> ppdu)
+ {
++    
+     NS_LOG_FUNCTION(this << ppdu);
+-    NS_ASSERT(m_wifiPhy->GetLastRxEndTime() == Simulator::Now());
++    if (!(m_wifiPhy->GetLastRxEndTime() == Simulator::Now())){
++        return;
++    }
+     NotifyInterferenceRxEndAndClear(false); // don't reset WifiPhy
+ 
+     m_wifiPhy->m_currentEvent = nullptr;
+diff --git a/src/wifi/model/wifi-phy-state-helper.cc b/src/wifi/model/wifi-phy-state-helper.cc
+index 05e8745fd..42259438d 100644
+--- a/src/wifi/model/wifi-phy-state-helper.cc
++++ b/src/wifi/model/wifi-phy-state-helper.cc
+@@ -412,6 +412,10 @@ void
+ WifiPhyStateHelper::SwitchToRx(Time rxDuration)
+ {
+     NS_LOG_FUNCTION(this << rxDuration);
++    if (IsStateOff()){
++        return;
++    }
++
+     NS_ASSERT(IsStateIdle() || IsStateCcaBusy());
+     Time now = Simulator::Now();
+     switch (GetState())
+@@ -429,7 +433,7 @@ WifiPhyStateHelper::SwitchToRx(Time rxDuration)
+     m_startRx = now;
+     m_endRx = now + rxDuration;
+     NotifyRxStart(rxDuration);
+-    NS_ASSERT(IsStateRx());
++    //NS_ASSERT(IsStateRx());
+ }
+ 
+ void
+@@ -520,6 +524,9 @@ void
+ WifiPhyStateHelper::SwitchFromRxEndOk()
+ {
+     NS_LOG_FUNCTION(this);
++    if (IsStateOff()){
++        return;
++    }
+     NS_ASSERT(m_endRx == Simulator::Now());
+     NotifyRxEndOk();
+     DoSwitchFromRx();
+@@ -529,6 +536,9 @@ void
+ WifiPhyStateHelper::SwitchFromRxEndError()
+ {
+     NS_LOG_FUNCTION(this);
++    if (IsStateOff()){
++        return;
++    }
+     NS_ASSERT(m_endRx == Simulator::Now());
+     NotifyRxEndError();
+     DoSwitchFromRx();
+@@ -542,6 +552,9 @@ WifiPhyStateHelper::DoSwitchFromRx()
+     m_stateLogger(m_startRx, now - m_startRx, WifiPhyState::RX);
+     m_previousStateChangeTime = now;
+     m_endRx = Simulator::Now();
++    if (IsStateOff()){
++        return;
++    }
+     NS_ASSERT(IsStateIdle() || IsStateCcaBusy());
+ }
+ 
+diff --git a/src/wifi/model/wifi-radio-energy-model.cc b/src/wifi/model/wifi-radio-energy-model.cc
+index 03dc54131..af4154658 100644
+--- a/src/wifi/model/wifi-radio-energy-model.cc
++++ b/src/wifi/model/wifi-radio-energy-model.cc
+@@ -120,12 +120,12 @@ WifiRadioEnergyModel::SetEnergySource(const Ptr<EnergySource> source)
+     NS_LOG_FUNCTION(this << source);
+     NS_ASSERT(source);
+     m_source = source;
+-    m_switchToOffEvent.Cancel();
+-    Time durationToOff = GetMaximumTimeInState(m_currentState);
+-    m_switchToOffEvent = Simulator::Schedule(durationToOff,
+-                                             &WifiRadioEnergyModel::ChangeState,
+-                                             this,
+-                                             WifiPhyState::OFF);
++    //m_switchToOffEvent.Cancel();
++    //Time durationToOff = GetMaximumTimeInState(m_currentState);
++    //m_switchToOffEvent = Simulator::Schedule(durationToOff,
++    //                                         &WifiRadioEnergyModel::ChangeState,
++    //                                         this,
++    //                                         WifiPhyState::OFF);
+ }
+ 
+ double
+@@ -292,24 +292,23 @@ WifiRadioEnergyModel::ChangeState(int newState)
+ {
+     NS_LOG_FUNCTION(this << newState);
+ 
+-    m_nPendingChangeState++;
+-
+-    if (m_nPendingChangeState > 1 && newState == WifiPhyState::OFF)
+-    {
+-        SetWifiRadioState((WifiPhyState)newState);
+-        m_nPendingChangeState--;
+-        return;
+-    }
+ 
+-    if (newState != WifiPhyState::OFF)
+-    {
+-        m_switchToOffEvent.Cancel();
+-        Time durationToOff = GetMaximumTimeInState(newState);
+-        m_switchToOffEvent = Simulator::Schedule(durationToOff,
+-                                                 &WifiRadioEnergyModel::ChangeState,
+-                                                 this,
+-                                                 WifiPhyState::OFF);
+-    }
++    m_nPendingChangeState++;
++    //if (m_nPendingChangeState > 1 && newState == WifiPhyState::OFF)
++    //{
++    //    NS_LOG_FUNCTION("I am somehow here at time: " << Simulator::Now().GetSeconds());
++    //    SetWifiRadioState((WifiPhyState)newState);
++    //    m_nPendingChangeState--;
++    //    return;
++    //}
++
++    //if (newState != WifiPhyState::OFF)
++    //{
++    //    m_switchToOffEvent.Cancel();
++    //    Time durationToOff = GetMaximumTimeInState(newState);
++    //    m_switchToOffEvent = Simulator::Schedule(durationToOff,
++    //                                             &WifiRadioEnergyModel::ChangeState,this, WifiPhyState::OFF);
++    //}
+ 
+     Time duration = Simulator::Now() - m_lastUpdateTime;
+     NS_ASSERT(duration.IsPositive()); // check if duration is valid
+@@ -358,6 +357,9 @@ WifiRadioEnergyModel::HandleEnergyDepletion()
+     {
+         m_energyDepletionCallback();
+     }
++    else{
++        NS_LOG_DEBUG("It was null some how");
++    }
+ }
+ 
+ void
+@@ -377,15 +379,13 @@ WifiRadioEnergyModel::HandleEnergyChanged()
+ {
+     NS_LOG_FUNCTION(this);
+     NS_LOG_DEBUG("WifiRadioEnergyModel:Energy is changed!");
+-    if (m_currentState != WifiPhyState::OFF)
+-    {
+-        m_switchToOffEvent.Cancel();
+-        Time durationToOff = GetMaximumTimeInState(m_currentState);
+-        m_switchToOffEvent = Simulator::Schedule(durationToOff,
+-                                                 &WifiRadioEnergyModel::ChangeState,
+-                                                 this,
+-                                                 WifiPhyState::OFF);
+-    }
++    //if (m_currentState != WifiPhyState::OFF)
++    //{
++    //    m_switchToOffEvent.Cancel();
++    //    Time durationToOff = GetMaximumTimeInState(m_currentState);
++    //    m_switchToOffEvent = Simulator::Schedule(durationToOff,
++    //                                             &WifiRadioEnergyModel::ChangeState,this, WifiPhyState::OFF);
++    //}
+ }
+ 
+ WifiRadioEnergyModelPhyListener*
+@@ -509,8 +509,8 @@ WifiRadioEnergyModelPhyListener::NotifyRxStart(Time duration)
+     {
+         NS_FATAL_ERROR("WifiRadioEnergyModelPhyListener:Change state callback not set!");
+     }
+-    m_changeStateCallback(WifiPhyState::RX);
+     m_switchToIdleEvent.Cancel();
++    m_changeStateCallback(WifiPhyState::RX);
+ }
+ 
+ void
+@@ -595,8 +595,8 @@ WifiRadioEnergyModelPhyListener::NotifySleep()
+     {
+         NS_FATAL_ERROR("WifiRadioEnergyModelPhyListener:Change state callback not set!");
+     }
+-    m_changeStateCallback(WifiPhyState::SLEEP);
+     m_switchToIdleEvent.Cancel();
++    m_changeStateCallback(WifiPhyState::SLEEP);
+ }
+ 
+ void
+@@ -618,8 +618,9 @@ WifiRadioEnergyModelPhyListener::NotifyOff()
+     {
+         NS_FATAL_ERROR("WifiRadioEnergyModelPhyListener:Change state callback not set!");
+     }
+-    m_changeStateCallback(WifiPhyState::OFF);
+     m_switchToIdleEvent.Cancel();
++    
++    m_changeStateCallback(WifiPhyState::OFF);
+ }
+ 
+ void
