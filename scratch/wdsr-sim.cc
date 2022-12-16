@@ -51,7 +51,7 @@ using namespace ns3;
 
 
 uint32_t nWifis = 20;
-int depletedN = (int) nWifis;
+int depletedN;
 
 
 Ptr<GnuplotAggregator> aggregator;
@@ -66,7 +66,6 @@ Ptr<GnuplotAggregator> depletedAggregator;
 void isDepleted (bool oldStatus, bool depleted){
     if (depleted){
         if (depletedN == 0){
-            depletedN = (int)nWifis;
         }
         depletedN--;
         NS_ASSERT(depletedN >= 0);
@@ -123,21 +122,21 @@ main(int argc, char* argv[])
 
     // General parameters
     uint32_t nSinks = 10;
-    double TotalTime = 200.0;
+    double TotalTime = 3000.0;
     //double dataTime = 19.0;
     double ppers = 100;
-    uint32_t packetSize = 1024;
+    uint32_t packetSize = 8192;
     double dataStart = 0.0; // start sending data at 10s
-    uint32_t seed = 2;
+    uint32_t seed = 3;
     int runDSR = 0;
-    int fixed = 0;
+    bool fixed = false;
 
     //energymodel
     double initialEnergy = 50; // joule
     double voltage = 3.0;       // volts
     //double txPowerEnd = 36.0;   // dbm
     //double txPowerStart = txPowerEnd;  // dbm
-    //double idleCurrent = 0.273; // Ampere
+    double idleCurrent = 0.0273; // Ampere
     double txCurrent = 4/voltage;   // Ampere
     
     std::string rate = "1Mbps";
@@ -152,13 +151,16 @@ main(int argc, char* argv[])
     cmd.AddValue("packetSize", "The packet size", packetSize);
     cmd.AddValue("seed", "Seed used for random placement, Default:1", seed);
     cmd.AddValue("comp", "Compare WDSR to DSR, Default: 0", runDSR);
-    cmd.AddValue("fixed", "Run with fixed position, Default: 0", fixed);
+    cmd.AddValue("fixed", "Run with fixed position, Default: false", fixed);
     cmd.Parse(argc, argv);
 
-    if (fixed) nWifis = 9;
+    if (fixed) {
+        nWifis = 9;
+    }
     for (int dsr = 0; dsr < (1+runDSR); dsr++) { //1 for only WDSR 2 for Compare.
     //printf("imma transmit with %.2lfW for this test. The test is %s\n",  DbmToW(txPowerEnd), dsr ? "dsr": "wdsr");
 
+    depletedN = (int)nWifis;
     /********* Gnuplot ***********/
 
     aggregator = CreateObject<GnuplotAggregator>(dsr ? "Dsr-plot" : "Wdsr-plot");
@@ -192,14 +194,16 @@ main(int argc, char* argv[])
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
-    if (fixed)
+    if (!fixed){
       wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel",
                                       "Frequency", DoubleValue(2.45e9));
-    else
+
+    }
+    else{
       wifiChannel.AddPropagationLoss("ns3::RangePropagationLossModel",
                                      "MaxRange",
                                      DoubleValue(110));
-
+    }
     //wifiPhy.Set("TxPowerStart", DoubleValue(txPowerStart));
     //wifiPhy.Set("TxPowerEnd", DoubleValue(txPowerEnd));
     //wifiPhy.Set("TxPowerLevels", UintegerValue(nTxPowerLevels));
@@ -223,11 +227,12 @@ main(int argc, char* argv[])
 #endif
     /******* Placement *******/
     MobilityHelper mobility;
-    if (fixed)
+    if (!fixed) {
     mobility.SetPositionAllocator("ns3::RandomBoxPositionAllocator",
                                     "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=1500]"),
                                     "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=1500]"),
                                     "Z", StringValue("ns3::UniformRandomVariable[Min=1.0|Max=50.0]"));
+    }
     else {
 
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
@@ -257,7 +262,7 @@ main(int argc, char* argv[])
     // SwitchingCurrentA: The default radio Channel Switch current in Ampere.
     // SleepCurrentA:     The radio Sleep current in Ampere.
     // TxCurrentModel:    A pointer to the attached tx current model.
-    //energyHelper.Set("IdleCurrentA", DoubleValue(idleCurrent));
+    energyHelper.Set("IdleCurrentA", DoubleValue(idleCurrent));
     energyHelper.Set("TxCurrentA", DoubleValue(txCurrent));
     //energyHelper.Set("RxCurrentA", DoubleValue(2 * txCurrent / 3));
     // double eta = DbmToW(txPowerStart) / ((txCurrent - idleCurrent) * voltage);
@@ -340,7 +345,7 @@ main(int argc, char* argv[])
         onoff1.SetAttribute("PacketSize", UintegerValue(packetSize));
         onoff1.SetAttribute("DataRate", DataRateValue(DataRate(rate)));
 
-        ApplicationContainer apps1 = onoff1.Install(adhocNodes.Get(i));
+        ApplicationContainer apps1 = onoff1.Install(adhocNodes.Get(i+ nWifis - nSinks));
         apps1.Start(Seconds(dataStart + i * randomStartTime));
         apps1.Stop(Seconds(dataTime + i * randomStartTime));
     }
@@ -385,7 +390,7 @@ main(int argc, char* argv[])
     NS_LOG_INFO("Run Simulation.");
     Simulator::Stop(Seconds(TotalTime));
     /******* Animation *******/
-#if 1 //(dis/en)able animation
+#if 0 //(dis/en)able animation
     AnimationInterface anim(dsr ? "dsr-sim.xml" : "wdsr-sim.xml"); // Mandatory
     anim.EnablePacketMetadata(); // Optional
     anim.EnableIpv4RouteTracking("routingtable-wire.xml",
