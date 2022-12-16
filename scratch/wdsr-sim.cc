@@ -113,9 +113,10 @@ main(int argc, char* argv[])
     double dataStart = 0.0; // start sending data at 10s
     uint32_t seed = 2;
     int runDSR = 0;
+    int fixed = 0;
 
     //energymodel
-    double initialEnergy = 10; // joule
+    double initialEnergy = 50; // joule
     double voltage = 3.0;       // volts
     //double txPowerEnd = 36.0;   // dbm
     //double txPowerStart = txPowerEnd;  // dbm
@@ -134,8 +135,10 @@ main(int argc, char* argv[])
     cmd.AddValue("packetSize", "The packet size", packetSize);
     cmd.AddValue("seed", "Seed used for random placement, Default:1", seed);
     cmd.AddValue("comp", "Compare WDSR to DSR, Default: 0", runDSR);
+    cmd.AddValue("fixed", "Run with fixed position, Default: 0", fixed);
     cmd.Parse(argc, argv);
 
+    if (fixed) nWifis = 9;
     for (int dsr = 0; dsr < (1+runDSR); dsr++) { //1 for only WDSR 2 for Compare.
     //printf("imma transmit with %.2lfW for this test. The test is %s\n",  DbmToW(txPowerEnd), dsr ? "dsr": "wdsr");
 
@@ -153,8 +156,8 @@ main(int argc, char* argv[])
     
     /******************************/
 
-    SeedManager::SetSeed(10);
-    SeedManager::SetRun(1);
+    RngSeedManager::SetSeed(seed);
+    RngSeedManager::SetRun(1);
     NodeContainer adhocNodes;
     adhocNodes.Create(nWifis);
     NetDeviceContainer allDevices;
@@ -172,8 +175,14 @@ main(int argc, char* argv[])
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
-    wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel",
-                                    "Frequency", DoubleValue(2.45e9));
+    if (fixed)
+      wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel",
+                                      "Frequency", DoubleValue(2.45e9));
+    else
+      wifiChannel.AddPropagationLoss("ns3::RangePropagationLossModel",
+                                     "MaxRange",
+                                     DoubleValue(110));
+
     //wifiPhy.Set("TxPowerStart", DoubleValue(txPowerStart));
     //wifiPhy.Set("TxPowerEnd", DoubleValue(txPowerEnd));
     //wifiPhy.Set("TxPowerLevels", UintegerValue(nTxPowerLevels));
@@ -196,13 +205,26 @@ main(int argc, char* argv[])
     wifiPhy.EnablePcapAll(dsr ? "dsr-sim" : "wdsr-sim");
 #endif
     /******* Placement *******/
-    RngSeedManager::SetSeed(seed);
-    RngSeedManager::SetRun(1);
     MobilityHelper mobility;
+    if (fixed)
     mobility.SetPositionAllocator("ns3::RandomBoxPositionAllocator",
                                     "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=1500]"),
                                     "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=1500]"),
                                     "Z", StringValue("ns3::UniformRandomVariable[Min=1.0|Max=50.0]"));
+    else {
+
+    Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
+    positionAlloc->Add(Vector(9, 75, 0.0));
+    positionAlloc->Add(Vector(75, 0.0, 0.0));
+    positionAlloc->Add(Vector(75+100, 0.0, 0.0));
+    positionAlloc->Add(Vector(75+200, 16.0, 0.0));
+    positionAlloc->Add(Vector(271, 115.0, 0.0));
+    positionAlloc->Add(Vector(75, 2*75.0, 0.0));
+    positionAlloc->Add(Vector(170, 114, 0.0));
+    positionAlloc->Add(Vector(134, 232, 0.0));
+    positionAlloc->Add(Vector(233, 210.0, 0.0));
+    mobility.SetPositionAllocator(positionAlloc);
+    }
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(adhocNodes);
     /**************************/
@@ -285,7 +307,7 @@ main(int argc, char* argv[])
     uint16_t port = 9;
     double randomStartTime =
         (1 / ppers) / nSinks; // distributed btw 1s evenly as we are sending 4pkt/s
-#if 1
+#if 0
     for (uint32_t i = 0; i < nSinks; ++i)
     {
         PacketSinkHelper sink("ns3::UdpSocketFactory",
@@ -326,7 +348,7 @@ main(int argc, char* argv[])
     NS_LOG_INFO("Run Simulation.");
     Simulator::Stop(Seconds(TotalTime));
     /******* Animation *******/
-#if 0 //(dis/en)able animation
+#if 1 //(dis/en)able animation
     AnimationInterface anim(dsr ? "dsr-sim.xml" : "wdsr-sim.xml"); // Mandatory
     anim.EnablePacketMetadata(); // Optional
     anim.EnableIpv4RouteTracking("routingtable-wire.xml",
