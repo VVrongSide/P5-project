@@ -48,7 +48,11 @@
 
 using namespace ns3;
 
-int depletedN;
+
+
+uint32_t nWifis = 20;
+int depletedN = (int) nWifis;
+
 
 Ptr<GnuplotAggregator> aggregator;
 void TotalEnergy (std::string context, double oldValue, double totalEnergy) {
@@ -61,10 +65,25 @@ void TotalEnergy (std::string context, double oldValue, double totalEnergy) {
 Ptr<GnuplotAggregator> depletedAggregator;
 void isDepleted (bool oldStatus, bool depleted){
     if (depleted){
+        if (depletedN == 0){
+            depletedN = (int)nWifis;
+        }
         depletedN--;
         NS_ASSERT(depletedN >= 0);
         depletedAggregator->Write2d("Nodes Alive", Simulator::Now().GetSeconds(), depletedN);
     }
+}
+uint32_t port;
+Ptr<Socket>
+SetupPacketReceive(Ipv4Address addr, Ptr<Node> node)
+{
+    TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
+    Ptr<Socket> sink = Socket::CreateSocket(node, tid);
+    InetSocketAddress local = InetSocketAddress(addr, port);
+    sink->Bind(local);
+    //sink->SetRecvCallback(MakeCallback(&RoutingExperiment::ReceivePacket, this));
+
+    return sink;
 }
 
 
@@ -103,11 +122,9 @@ main(int argc, char* argv[])
     NS_LOG_INFO("creating the nodes");
 
     // General parameters
-    uint32_t nWifis = 20;
-    depletedN = (int)nWifis;
     uint32_t nSinks = 10;
-    double TotalTime = 20.0;
-    double dataTime = 19.0;
+    double TotalTime = 200.0;
+    //double dataTime = 19.0;
     double ppers = 100;
     uint32_t packetSize = 1024;
     double dataStart = 0.0; // start sending data at 10s
@@ -242,15 +259,15 @@ main(int argc, char* argv[])
     // TxCurrentModel:    A pointer to the attached tx current model.
     //energyHelper.Set("IdleCurrentA", DoubleValue(idleCurrent));
     energyHelper.Set("TxCurrentA", DoubleValue(txCurrent));
-    //double eta = DbmToW(txPowerStart) / ((txCurrent - idleCurrent) * voltage);
-    //NS_LOG_UNCOND("eta feta is: " << eta);
-    //energyHelper.SetTxCurrentModel("ns3::LinearWifiTxCurrentModel",
-    //                                "Voltage", DoubleValue(voltage),
-    //                                "IdleCurrent", DoubleValue(idleCurrent),
-    //                                "Eta", DoubleValue(eta));
-    //WifiRadioEnergyModel::WifiRadioEnergyDepletionCallback callback = MakeCallback(&depletion);
-    //energyHelper.SetDepletionCallback(callback);
-
+    //energyHelper.Set("RxCurrentA", DoubleValue(2 * txCurrent / 3));
+    // double eta = DbmToW(txPowerStart) / ((txCurrent - idleCurrent) * voltage);
+    // NS_LOG_UNCOND("eta feta is: " << eta);
+    // energyHelper.SetTxCurrentModel("ns3::LinearWifiTxCurrentModel",
+    //                                 "Voltage", DoubleValue(voltage),
+    //                                 "IdleCurrent", DoubleValue(idleCurrent),
+    //                                 "Eta", DoubleValue(eta));
+    // WifiRadioEnergyModel::WifiRadioEnergyDepletionCallback callback = MakeCallback(&depletion);
+    // energyHelper.SetDepletionCallback(callback);
 
     for (uint32_t i = 0; i < adhocNodes.GetN();i++){
         energySources[i] = CreateObject<BasicEnergySource>();
@@ -323,12 +340,32 @@ main(int argc, char* argv[])
         onoff1.SetAttribute("PacketSize", UintegerValue(packetSize));
         onoff1.SetAttribute("DataRate", DataRateValue(DataRate(rate)));
 
-        ApplicationContainer apps1 = onoff1.Install(adhocNodes.Get(i + nWifis - nSinks));
+        ApplicationContainer apps1 = onoff1.Install(adhocNodes.Get(i));
         apps1.Start(Seconds(dataStart + i * randomStartTime));
         apps1.Stop(Seconds(dataTime + i * randomStartTime));
     }
+#elif 1
+        OnOffHelper onoff1("ns3::UdpSocketFactory",
+                           Address());
+        onoff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1.0]"));
+        onoff1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0.0]"));
+        onoff1.SetAttribute("PacketSize", UintegerValue(packetSize));
+        onoff1.SetAttribute("DataRate", DataRateValue(DataRate(rate)));
+    for (int i = 0; i < nSinks; i++)
+    {
+        Ptr<Socket> sink = SetupPacketReceive(allInterfaces.GetAddress(i), adhocNodes.Get(i));
+
+        
+        AddressValue remoteAddress(InetSocketAddress(allInterfaces.GetAddress(i), port));
+        onoff1.SetAttribute("Remote", remoteAddress);
+
+        Ptr<UniformRandomVariable> var = CreateObject<UniformRandomVariable>();
+        ApplicationContainer temp = onoff1.Install(adhocNodes.Get(i + nSinks));
+        temp.Start(Seconds(var->GetValue(0.0, 10.0)));
+        temp.Stop(Seconds(TotalTime));
+    }
 #else
-    double m_packetInterval = 0.4;
+    double m_packetInterval = 0.001;
     uint16_t portNumber = 9;
     UdpEchoServerHelper echoServer(portNumber);
     uint16_t sinkNodeId = 3;
