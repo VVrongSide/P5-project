@@ -55,7 +55,7 @@ index f2cf6cf87..a312cb63f 100644
  void
  PhyEntity::DoEndReceivePayload(Ptr<const WifiPpdu> ppdu)
  {
-+    
++
      NS_LOG_FUNCTION(this << ppdu);
 -    NS_ASSERT(m_wifiPhy->GetLastRxEndTime() == Simulator::Now());
 +    if (!(m_wifiPhy->GetLastRxEndTime() == Simulator::Now())){
@@ -241,7 +241,7 @@ index 03dc54131..af4154658 100644
      }
 -    m_changeStateCallback(WifiPhyState::OFF);
      m_switchToIdleEvent.Cancel();
-+    
++
 +    m_changeStateCallback(WifiPhyState::OFF);
  }
  
