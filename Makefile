@@ -31,6 +31,7 @@ plot: run
 plotComp:
 	ns3/ns3 run "wdsr-sim --comp=1"
 	cd ns3;./Wdsr-plot.sh && ./Dsr-plot.sh; cd ..
+	gnuplot NodesAlive-plot.plt
 
 avg:
 	gcc avg.c -o avg -O2
