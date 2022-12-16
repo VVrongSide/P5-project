@@ -262,7 +262,7 @@ main(int argc, char* argv[])
     // SwitchingCurrentA: The default radio Channel Switch current in Ampere.
     // SleepCurrentA:     The radio Sleep current in Ampere.
     // TxCurrentModel:    A pointer to the attached tx current model.
-    energyHelper.Set("IdleCurrentA", DoubleValue(idleCurrent));
+    //energyHelper.Set("IdleCurrentA", DoubleValue(idleCurrent));
     energyHelper.Set("TxCurrentA", DoubleValue(txCurrent));
     //energyHelper.Set("RxCurrentA", DoubleValue(2 * txCurrent / 3));
     // double eta = DbmToW(txPowerStart) / ((txCurrent - idleCurrent) * voltage);
