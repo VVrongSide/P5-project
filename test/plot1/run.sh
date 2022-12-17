@@ -3,7 +3,7 @@
   echo "" > y.dat
   ../../ns3/ns3 run "wdsr-sim --fixed=1"
 
-for i in {16..2}
+for i in {126..2}
 do
   # echo "$i" >> timeofdeath.dat
   ../../ns3/build/scratch/ns3-dev-wdsr-sim-default --fixed=1 --gamma="$i" >> timeofdeath.dat
