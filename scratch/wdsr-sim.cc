@@ -51,13 +51,14 @@ using namespace ns3;
 
 
 uint32_t nWifis = 20;
+bool fixed = 0;
 int depletedN;
 
 
 Ptr<GnuplotAggregator> aggregator;
 void TotalEnergy (std::string context, double oldValue, double totalEnergy) {
     aggregator->Write2d(context, Simulator::Now().GetSeconds(), totalEnergy);
-    printf("The current time is: %lf \n", Simulator::Now().GetSeconds());
+    if (!fixed) printf("The current time is: %lf \n", Simulator::Now().GetSeconds());
     // NS_LOG_UNCOND ("%INFO TimeStamp: "<<Simulator::Now ().GetSeconds ()<<" secs Total energy
     // consumed Node: "<<context<<" "<<totalEnergy<< " Joules");
 }
@@ -67,11 +68,13 @@ void isDepleted (bool oldStatus, bool depleted){
     if (depleted){
         if (depletedN == 0){
         }
+        if (depletedN == nWifis && fixed) printf("%lf\n", Simulator::Now().GetSeconds());
         depletedN--;
         NS_ASSERT(depletedN >= 0);
         depletedAggregator->Write2d("Nodes Alive", Simulator::Now().GetSeconds(), depletedN);
     }
 }
+
 uint32_t port;
 Ptr<Socket>
 SetupPacketReceive(Ipv4Address addr, Ptr<Node> node)
@@ -122,14 +125,14 @@ main(int argc, char* argv[])
 
     // General parameters
     uint32_t nSinks = 10;
-    double TotalTime = 3000.0;
+    double TotalTime = 300.0;
     //double dataTime = 19.0;
     double ppers = 100;
     uint32_t packetSize = 8192;
     double dataStart = 0.0; // start sending data at 10s
     uint32_t seed = 3;
     int runDSR = 0;
-    bool fixed = false;
+    uint8_t gamma = 120;
 
     //energymodel
     double initialEnergy = 50; // joule
@@ -151,13 +154,15 @@ main(int argc, char* argv[])
     cmd.AddValue("packetSize", "The packet size", packetSize);
     cmd.AddValue("seed", "Seed used for random placement, Default:1", seed);
     cmd.AddValue("comp", "Compare WDSR to DSR, Default: 0", runDSR);
-    cmd.AddValue("fixed", "Run with fixed position, Default: false", fixed);
+    cmd.AddValue("fixed", "Run with fixed position, Default: 0", fixed);
+    cmd.AddValue("gamma", "gamma/threshold value, Default: 120", gamma);
     cmd.Parse(argc, argv);
 
     if (fixed) {
         nWifis = 9;
+        nSinks = 2;
     }
-    for (int dsr = 0; dsr < (1+runDSR); dsr++) { //1 for only WDSR 2 for Compare.
+    for (int dsr = 0; dsr <= runDSR; dsr++) { //1 for only WDSR 2 for Compare.
     //printf("imma transmit with %.2lfW for this test. The test is %s\n",  DbmToW(txPowerEnd), dsr ? "dsr": "wdsr");
 
     depletedN = (int)nWifis;
@@ -276,7 +281,7 @@ main(int argc, char* argv[])
 
     for (uint32_t i = 0; i < adhocNodes.GetN();i++){
         energySources[i] = CreateObject<BasicEnergySource>();
-        energySources[i]->SetInitialEnergy(initialEnergy);
+        energySources[i]->SetInitialEnergy((i==0 && fixed) ? initialEnergy*2 : initialEnergy);
         energySources[i]->SetSupplyVoltage(voltage);
 
         energySources[i]->SetNode(adhocNodes.Get(i));
@@ -349,7 +354,7 @@ main(int argc, char* argv[])
         apps1.Start(Seconds(dataStart + i * randomStartTime));
         apps1.Stop(Seconds(dataTime + i * randomStartTime));
     }
-#elif 1
+#elif 0
         OnOffHelper onoff1("ns3::UdpSocketFactory",
                            Address());
         onoff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1.0]"));
@@ -373,18 +378,18 @@ main(int argc, char* argv[])
     double m_packetInterval = 0.001;
     uint16_t portNumber = 9;
     UdpEchoServerHelper echoServer(portNumber);
-    uint16_t sinkNodeId = 3;
+    uint16_t sinkNodeId = 4;
     ApplicationContainer serverApps = echoServer.Install(adhocNodes.Get(sinkNodeId));
     serverApps.Start(Seconds(1.0));
-    serverApps.Stop(Seconds(dataTime + 1));
+    serverApps.Stop(Seconds(TotalTime));
     UdpEchoClientHelper echoClient(allInterfaces.GetAddress(sinkNodeId), portNumber);
     echoClient.SetAttribute("MaxPackets",
-                            UintegerValue((uint32_t)(dataTime * (1 / m_packetInterval))));
+                            UintegerValue((uint32_t)(TotalTime * (1 / m_packetInterval))));
     echoClient.SetAttribute("Interval", TimeValue(Seconds(m_packetInterval)));
     echoClient.SetAttribute("PacketSize", UintegerValue(packetSize));
     ApplicationContainer clientApps = echoClient.Install(adhocNodes.Get(0));
     clientApps.Start(Seconds(1.0));
-    clientApps.Stop(Seconds(TotalTime));
+    clientApps.Stop(Seconds(TotalTime-1));
 #endif
 
     NS_LOG_INFO("Run Simulation.");

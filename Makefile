@@ -42,3 +42,6 @@ summed: avg plotComp
 	gnuplot summed-plot.plt
 	xdg-open ns3/total-plot.pdf
 
+ns3/src/patch:
+	cp patch ns3/src/patch
+	cd ns3/src; git apply patch; cd ../../
