@@ -397,7 +397,7 @@ WDsrOptionRreqHeader::GetLowestBat() const
 void 
 WDsrOptionRreqHeader::CalcLowestBat(uint8_t lowestBat, double remainingBattery, double initialJoules)
 {
-    NS_LOG_DEBUG(">>> RREQTEST: This is remaining battery: "<<remainingBattery<<" Joules");
+    NS_LOG_DEBUG(">>> RREQTEST: This is remaining battery: "<<remainingBattery<<" of "<<initialJoules<<" Joules");
     uint8_t batPct = (remainingBattery/initialJoules)*0x7f; // 0x7f er 127, benjamin er tosset
     NS_LOG_DEBUG(">>> RREQTEST: This is remaining battery in 127th parts: "<<(int)batPct<<"/127 parts");
     if (lowestBat>batPct){

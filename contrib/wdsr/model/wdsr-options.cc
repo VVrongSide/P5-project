@@ -39,6 +39,7 @@
 
 #include "wdsr-option-header.h"
 #include "wdsr-rcache.h"
+#include "wdsr-test.h"
 
 #include "ns3/assert.h"
 #include "ns3/fatal-error.h"
@@ -68,7 +69,6 @@
 
 namespace ns3
 {
-
 NS_LOG_COMPONENT_DEFINE("WDsrOptions");
 
 namespace wdsr
@@ -79,7 +79,6 @@ NS_OBJECT_ENSURE_REGISTERED(WDsrOptions);
 /*
 * \brief The max capacity for all node batteries
 */
-double initialEnergy = 100;
 
 TypeId
 WDsrOptions::GetTypeId()
@@ -560,7 +559,8 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
     NS_LOG_FUNCTION(this << packet << wdsrP << ipv4Address << source << ipv4Header
                          << (uint32_t)protocol << isPromisc);
     // Fields from IP header
-    Time ActiveRouteTimeout = Seconds(5);
+    Time ActiveRouteTimeout = Seconds(α);
+    NS_LOG_DEBUG("ActiveRouteTimeout result: "<<ActiveRouteTimeout);
     Ipv4Address srcAddress = ipv4Header.GetSource();
     /*
      * \ when the ip source address is equal to the address of our own, this is request packet
@@ -1272,7 +1272,7 @@ WDsrOptionRrep::Process(Ptr<Packet> packet,
 {
     NS_LOG_FUNCTION(this << packet << wdsrP << ipv4Address << source << ipv4Header
                          << (uint32_t)protocol << isPromisc);
-    Time ActiveRouteTimeout = Seconds(5);
+    Time ActiveRouteTimeout = Seconds(α);
     Ptr<Packet> p = packet->Copy();
 
     // Get the number of routers' address field

@@ -30,6 +30,7 @@ build_lib(
     model/wdsr-routing.h
     model/wdsr-rreq-table.h
     model/wdsr-rsendbuff.h
+    model/wdsr-test.h
   LIBRARIES_TO_LINK ${libinternet}
                     ${libwifi}
   TEST_SOURCES test/wdsr-test-suite.cc

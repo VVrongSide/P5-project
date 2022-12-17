@@ -32,6 +32,7 @@
  */
 
 #include "wdsr-rcache.h"
+#include "wdsr-test.h"
 
 #include "ns3/address-utils.h"
 #include "ns3/ipv4-route.h"
@@ -82,7 +83,7 @@ CompareLowestBat(const WDsrRouteCacheEntry& a, const WDsrRouteCacheEntry& b)
     NS_LOG_DEBUG("-- Comparing based on lowestBat");
     // compare based on hops
     NS_LOG_DEBUG("a.GetLowestBat(): "<<(int) a.GetLowestBat()<<" <= b.GetLowestBat(): "<<(int) b.GetLowestBat());
-    return a.GetLowestBat() <= b.GetLowestBat();
+    return a.GetLowestBat() >= b.GetLowestBat();
 }
 
 bool
@@ -676,6 +677,7 @@ bool
 WDsrRouteCache::AddRoute_Link(WDsrRouteCacheEntry::IP_VECTOR nodelist, Ipv4Address source)
 {
     NS_LOG_FUNCTION(this << source);
+    NS_LOG_DEBUG("Am i doing this again?");
     NS_LOG_LOGIC("Use Link Cache");
     /// Purge the link node cache first
     PurgeLinkNode();
@@ -833,7 +835,7 @@ WDsrRouteCache::AddRoute(WDsrRouteCacheEntry& rt)
 
                 // ! WDSR-M Routing protocol (CCMBCR)
                 
-                int threshold = 120 ;
+                uint8_t threshold = γ;
                 bool aboveThreshold = 0;
                 NS_LOG_DEBUG("Testing if lowestBat > threshold");
                 for (std::list<WDsrRouteCacheEntry>::iterator j = rtVector.begin(); j != rtVector.end(); ++j)

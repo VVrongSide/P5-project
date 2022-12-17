@@ -41,6 +41,7 @@
 #include "wdsr-options.h"
 #include "wdsr-rcache.h"
 #include "wdsr-rreq-table.h"
+#include "wdsr-test.h"
 
 #include "ns3/adhoc-wifi-mac.h"
 #include "ns3/arp-header.h"
@@ -99,7 +100,6 @@ const uint8_t WDsrRouting::PROT_NUMBER = 48;
 /*
 * \brief The max capacity for all node batteries
 */
-double initialEnergy2 = 100;
 /*
  * The extension header is the fixed size wdsr header, it is response for recognizing WDSR option
  types
@@ -2998,7 +2998,7 @@ WDsrRouting::SendInitialRequest(Ipv4Address source, Ipv4Address destination, uin
     if (nodeEnergySource != 0){ 
         rreqHeader.CalcLowestBat(/*lowestBat=*/lowestBat,
                            /*remainingBattery=*/remainingBattery,
-                           /*initialEnergy=*/initialEnergy2);
+                           /*initialEnergy=*/initialEnergy);
         rreqHeader.SetTxCost(txCost+placeholder);
     } else {
         NS_LOG_DEBUG(">>> RREQTEST: No <BasicEnergySource> implemented yet");
@@ -3464,7 +3464,7 @@ WDsrRouting::SendGratuitousReply(Ipv4Address source,
         if (nodeEnergySource != 0){ 
             rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
                                /*remainingBattery=*/remainingBattery,
-                               /*initialEnergy=*/initialEnergy2);
+                               /*initialEnergy=*/initialEnergy);
             rrep.SetTxCost(txCost+placeholder);
         } else {
             NS_LOG_DEBUG(">>> RREPTEST: No <BasicEnergySource> implemented yet");

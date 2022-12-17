@@ -54,6 +54,10 @@ uint32_t nWifis = 20;
 bool fixed = 0;
 int depletedN;
 
+// Initializing extern variables (Type should only be cast here)
+uint8_t γ;
+uint8_t α;
+double initialEnergy;
 
 Ptr<GnuplotAggregator> aggregator;
 void TotalEnergy (std::string context, double oldValue, double totalEnergy) {
@@ -119,6 +123,7 @@ main(int argc, char* argv[])
   LogComponentEnable ("WDsrRreqTable", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrErrorBuffer", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrNetworkQueue", LOG_LEVEL_ALL);
+  
 #endif
     //LogComponentEnable("WifiRadioEnergyModel", LOG_DEBUG);
     NS_LOG_INFO("creating the nodes");
@@ -132,10 +137,11 @@ main(int argc, char* argv[])
     double dataStart = 0.0; // start sending data at 10s
     uint32_t seed = 3;
     int runDSR = 0;
-    uint8_t gamma = 120;
+    γ = 120;
+    α = 5;
 
     //energymodel
-    double initialEnergy = 50; // joule
+    initialEnergy = 50; // joule
     double voltage = 3.0;       // volts
     //double txPowerEnd = 36.0;   // dbm
     //double txPowerStart = txPowerEnd;  // dbm
@@ -155,7 +161,7 @@ main(int argc, char* argv[])
     cmd.AddValue("seed", "Seed used for random placement, Default:1", seed);
     cmd.AddValue("comp", "Compare WDSR to DSR, Default: 0", runDSR);
     cmd.AddValue("fixed", "Run with fixed position, Default: 0", fixed);
-    cmd.AddValue("gamma", "gamma/threshold value, Default: 120", gamma);
+    cmd.AddValue("gamma", "gamma/threshold value, Default: 120", γ);
     cmd.Parse(argc, argv);
 
     if (fixed) {
