@@ -60,16 +60,17 @@ using namespace ns3;
 
 uint32_t nWifis = 20;
 bool fixed = 0;
-bool logonce = 0;
+bool logonce;
 
 //double initialEnergy[100];
 double remainingEnergy[100];
+uint32_t packets[100];
 
 // Initializing extern variables (Type should only be cast here)
 uint8_t γ;
 uint8_t α;
 double initialEnergy;
-double Oldtime = 0;
+double Oldtime;
 double idleW = 0.5;
 NetDeviceContainer allDevices;
 Timer logging;
@@ -91,8 +92,8 @@ Ptr<GnuplotAggregator> depletedAggregator;
 void Logger() {
     CalcIdleAll();
     uint32_t depleted = nWifis;
-    for (int i = 0; i < nWifis; i++){
-        NS_LOG_UNCOND ("node "<<i<<"energy "<<remainingEnergy[i]<<" s "<<Simulator::Now().GetSeconds());
+    for (uint32_t i = 0; i < nWifis; i++){
+        //NS_LOG_UNCOND ("node "<<i<<"energy "<<remainingEnergy[i]<<" s "<<Simulator::Now().GetSeconds());
         aggregator->Write2d(std::to_string(i), Simulator::Now().GetSeconds(), remainingEnergy[i]);
         if (remainingEnergy[i] <= 0.0) {
             depleted--;
@@ -110,8 +111,9 @@ void Logger() {
 }
 
 void txsniff(std::string nodeID, Ptr< const Packet > packet, double txPowerW) {
-    NS_LOG_UNCOND ("node "<<nodeID<<" time "<<Simulator::Now ().GetSeconds ()<<" power "<<txPowerW<<" size "<<packet->GetSize());
-    remainingEnergy[std::stoi(nodeID)] -= txPowerW*((packet->GetSize()*8)/1000000.0); //TODO DataRate(rate).CalculateBytesTxTime(packet->GetSize())
+    //NS_LOG_UNCOND ("node "<<nodeID<<" time "<<Simulator::Now ().GetSeconds ()<<" power "<<txPowerW<<" size "<<packet->GetSize());
+    remainingEnergy[std::stoi(nodeID)] -= txPowerW*DataRate(rate).CalculateBytesTxTime(packet->GetSize()).GetSeconds();
+    packets[std::stoi(nodeID)] += packet->GetSize();
 }
 
 uint32_t port;
@@ -165,25 +167,23 @@ main(int argc, char* argv[])
 
     // General parameters
     uint32_t nSinks = 10;
-    double TotalTime = 300.0;
+    double TotalTime = 100.0;
     //double dataTime = 19.0;
     double ppers = 100;
-    uint32_t packetSize = 8192;
+    uint32_t packetSize = 1000;
     double dataStart = 0.0; // start sending data at 10s
     uint32_t seed = 3;
     int runDSR = 0;
     int echo = 0;
-    double logginginterval = 0.1;
+    double logginginterval = 0.01;
     γ = 120;
     α = 5;
 
     //energymodel
     initialEnergy = 50; // joule
-    double voltage = 3.0;       // volts
     double txPowerEnd = 36.0;   // dbm
     double txPowerStart = txPowerEnd;  // dbm
-    double idleCurrent = 0.0273; // Ampere
-    double txCurrent = 4/voltage;   // Ampere
+
     
     std::string dataMode("DsssRate11Mbps");
     std::string phyMode("DsssRate11Mbps");
@@ -198,6 +198,7 @@ main(int argc, char* argv[])
     cmd.AddValue("comp", "Compare WDSR to DSR, Default: 0", runDSR);
     cmd.AddValue("fixed", "Run with fixed position, Default: 0", fixed);
     cmd.AddValue("gamma", "gamma/threshold value, Default: 120", γ);
+    cmd.AddValue("alpha", "alpha value (in S), Default: 5", α);
     cmd.AddValue("echo", "EchoServer on/off, Default: 0", echo);
     cmd.Parse(argc, argv);
 
@@ -206,6 +207,8 @@ main(int argc, char* argv[])
         nSinks = 2;
     }
     for (int dsr = 0; dsr <= runDSR; dsr++) { //1 for only WDSR 2 for Compare.
+    Oldtime = 0;
+    logonce = 0;
 
     /********* Gnuplot ***********/
     aggregator = CreateObject<GnuplotAggregator>(dsr ? "Dsr-plot" : "Wdsr-plot");
@@ -300,10 +303,12 @@ main(int argc, char* argv[])
         Ptr<NetDevice> staDevicePtr = allDevices.Get(i);
         Ptr<WifiPhy> wifiPhyPtr = staDevicePtr->GetObject<WifiNetDevice>()->GetPhy();
         if (wifiPhyPtr != NULL) {
+            NS_ASSERT(staDevicePtr == adhocNodes.Get(i)->GetDevice(0));
             std::string context = std::to_string(i);
             wifiPhyPtr->TraceConnect("PhyTxBegin",context, MakeCallback(&txsniff));
             remainingEnergy[i] = initialEnergy;
             aggregator->Add2dDataset(context, std::string("Node: ") + context);
+            packets[i] = 0;
         }
     }
     depletedAggregator->Add2dDataset("Nodes Alive", std::string("Nodes Alive: "));
@@ -317,10 +322,10 @@ main(int argc, char* argv[])
     dsrH.Set("CacheType", StringValue("PathCache"));
     WDsrMainHelper wdsrMain;
     WDsrHelper wdsr;
+    wdsr.Set("CacheType", StringValue("PathCache"));
     internet.Install(adhocNodes);
     dsr ? dsrMain.Install(dsrH, adhocNodes) : wdsrMain.Install(wdsr, adhocNodes);
 
-    NS_LOG_INFO("assigning ip address");
     Ipv4AddressHelper address;
     address.SetBase("10.1.1.0", "255.255.255.0");
     Ipv4InterfaceContainer allInterfaces;
@@ -371,30 +376,28 @@ main(int argc, char* argv[])
     }
 #else
     double m_packetInterval = 0.1;
-    uint16_t portNumber = 9;
     uint16_t sinkNodeId = 4;
     ApplicationContainer serverApps;
     if (echo) {
-        UdpEchoServerHelper echoServer(portNumber);
+        UdpEchoServerHelper echoServer(port);
         serverApps = echoServer.Install(adhocNodes.Get(sinkNodeId));
     } else {
         PacketSinkHelper sink("ns3::UdpSocketFactory",
-                        InetSocketAddress(Ipv4Address::GetAny(), portNumber));
+                        InetSocketAddress(Ipv4Address::GetAny(), port));
         serverApps = sink.Install(adhocNodes.Get(sinkNodeId));
     }
     serverApps.Start(Seconds(1.0));
     serverApps.Stop(Seconds(TotalTime));
-    UdpEchoClientHelper echoClient(allInterfaces.GetAddress(sinkNodeId), portNumber);
+    UdpEchoClientHelper echoClient(allInterfaces.GetAddress(sinkNodeId), port);
     echoClient.SetAttribute("MaxPackets",
                             UintegerValue((uint32_t)(TotalTime * (1 / m_packetInterval))));
     echoClient.SetAttribute("Interval", TimeValue(Seconds(m_packetInterval)));
     echoClient.SetAttribute("PacketSize", UintegerValue(packetSize));
     ApplicationContainer clientApps = echoClient.Install(adhocNodes.Get(0));
     clientApps.Start(Seconds(1.0));
-    clientApps.Stop(Seconds(TotalTime-1));
+    clientApps.Stop(Seconds(TotalTime));
 #endif
 
-    NS_LOG_INFO("Run Simulation.");
     Simulator::Stop(Seconds(TotalTime));
     /******* Animation *******/
 #if 1 //(dis/en)able animation
@@ -415,5 +418,8 @@ main(int argc, char* argv[])
     /*************************/
     Simulator::Run();
     Simulator::Destroy();
+    for (int i = 0; i < 20; i++)
+        fprintf(stderr, "%d:%u ",i, packets[i]); 
+    fprintf(stderr, "\n");
     }
 }
