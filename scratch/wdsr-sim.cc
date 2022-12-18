@@ -137,6 +137,7 @@ main(int argc, char* argv[])
     double dataStart = 0.0; // start sending data at 10s
     uint32_t seed = 3;
     int runDSR = 0;
+    int echo = 0;
     γ = 120;
     α = 5;
 
@@ -162,6 +163,7 @@ main(int argc, char* argv[])
     cmd.AddValue("comp", "Compare WDSR to DSR, Default: 0", runDSR);
     cmd.AddValue("fixed", "Run with fixed position, Default: 0", fixed);
     cmd.AddValue("gamma", "gamma/threshold value, Default: 120", γ);
+    cmd.AddValue("echo", "EchoServer on/off, Default: 0", echo);
     cmd.Parse(argc, argv);
 
     if (fixed) {
@@ -176,8 +178,8 @@ main(int argc, char* argv[])
 
     aggregator = CreateObject<GnuplotAggregator>(dsr ? "Dsr-plot" : "Wdsr-plot");
     aggregator->SetTerminal("pdf");
-    aggregator->SetTitle("Energy remaining");
-    aggregator->SetLegend("Time (seconds)", "Energy");  // (x-axis, y-axis)
+    aggregator->SetTitle(dsr ? "Energy remaining (DSR)" : "Energy remaining (Wdsr)" );
+    aggregator->SetLegend("Time (seconds)", "Energy (J)");  // (x-axis, y-axis)
     
     depletedAggregator = CreateObject<GnuplotAggregator>(dsr ? "DsrAlive-plot" : "WdsrAlive-plot");
     depletedAggregator->SetTerminal("pdf");
@@ -383,9 +385,16 @@ main(int argc, char* argv[])
 #else
     double m_packetInterval = 0.001;
     uint16_t portNumber = 9;
-    UdpEchoServerHelper echoServer(portNumber);
     uint16_t sinkNodeId = 4;
-    ApplicationContainer serverApps = echoServer.Install(adhocNodes.Get(sinkNodeId));
+    ApplicationContainer serverApps;
+    if (echo) {
+        UdpEchoServerHelper echoServer(portNumber);
+        serverApps = echoServer.Install(adhocNodes.Get(sinkNodeId));
+    } else {
+        PacketSinkHelper sink("ns3::UdpSocketFactory",
+                        InetSocketAddress(Ipv4Address::GetAny(), portNumber));
+        serverApps = sink.Install(adhocNodes.Get(sinkNodeId));
+    }
     serverApps.Start(Seconds(1.0));
     serverApps.Stop(Seconds(TotalTime));
     UdpEchoClientHelper echoClient(allInterfaces.GetAddress(sinkNodeId), portNumber);
