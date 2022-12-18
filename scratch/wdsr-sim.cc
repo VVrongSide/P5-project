@@ -45,38 +45,73 @@
 #include "ns3/stats-module.h"
 #include <sstream>
 #include "ns3/wifi-radio-energy-model-helper.h"
+#include "ns3/wifi-net-device.h"
+
 
 using namespace ns3;
 
-
+/*****
+*   Todos
+*   [ ] correct parameters.
+*   [ ] new energy.
+*   [ ] plot with new energy model.
+*   [ ] Better transmission for random.
+*/
 
 uint32_t nWifis = 20;
 bool fixed = 0;
-int depletedN;
+bool logonce = 0;
+
+//double initialEnergy[100];
+double remainingEnergy[100];
 
 // Initializing extern variables (Type should only be cast here)
 uint8_t γ;
 uint8_t α;
 double initialEnergy;
+double Oldtime = 0;
+double idleW = 0.5;
+NetDeviceContainer allDevices;
+Timer logging;
+std::string rate = "1Mbps";
 
-Ptr<GnuplotAggregator> aggregator;
-void TotalEnergy (std::string context, double oldValue, double totalEnergy) {
-    aggregator->Write2d(context, Simulator::Now().GetSeconds(), totalEnergy);
-    if (!fixed) printf("The current time is: %lf \n", Simulator::Now().GetSeconds());
-    // NS_LOG_UNCOND ("%INFO TimeStamp: "<<Simulator::Now ().GetSeconds ()<<" secs Total energy
-    // consumed Node: "<<context<<" "<<totalEnergy<< " Joules");
+void CalcIdleAll() {
+    double newtime = ns3::Simulator::Now().GetSeconds(); //namespace ns3?
+    for (uint32_t i = 0; i < nWifis; i++){
+        if (remainingEnergy[i] > 0.0){
+            remainingEnergy[i] -= (idleW*(newtime-Oldtime));
+        }
+    }
+    Oldtime = newtime;
 }
 
+
+Ptr<GnuplotAggregator> aggregator;
 Ptr<GnuplotAggregator> depletedAggregator;
-void isDepleted (bool oldStatus, bool depleted){
-    if (depleted){
-        if (depletedN == 0){
+void Logger() {
+    CalcIdleAll();
+    uint32_t depleted = nWifis;
+    for (int i = 0; i < nWifis; i++){
+        NS_LOG_UNCOND ("node "<<i<<"energy "<<remainingEnergy[i]<<" s "<<Simulator::Now().GetSeconds());
+        aggregator->Write2d(std::to_string(i), Simulator::Now().GetSeconds(), remainingEnergy[i]);
+        if (remainingEnergy[i] <= 0.0) {
+            depleted--;
+            if (allDevices.Get(i)->GetObject<WifiNetDevice>()->GetPhy()->IsStateIdle())
+                allDevices.Get(i)->GetObject<WifiNetDevice>()->GetPhy()->SetOffMode();
         }
-        if (depletedN == nWifis && fixed) printf("%lf\n", Simulator::Now().GetSeconds());
-        depletedN--;
-        NS_ASSERT(depletedN >= 0);
-        depletedAggregator->Write2d("Nodes Alive", Simulator::Now().GetSeconds(), depletedN);
     }
+    depletedAggregator->Write2d("Nodes Alive", Simulator::Now().GetSeconds(), depleted);
+    if (depleted == nWifis-1 && !logonce) {
+        printf("%lf\n", Simulator::Now().GetSeconds());
+        logonce = 1;
+        //Simulator::Destroy();
+    }
+    logging.Schedule();
+}
+
+void txsniff(std::string nodeID, Ptr< const Packet > packet, double txPowerW) {
+    NS_LOG_UNCOND ("node "<<nodeID<<" time "<<Simulator::Now ().GetSeconds ()<<" power "<<txPowerW<<" size "<<packet->GetSize());
+    remainingEnergy[std::stoi(nodeID)] -= txPowerW*((packet->GetSize()*8)/1000000.0); //TODO DataRate(rate).CalculateBytesTxTime(packet->GetSize())
 }
 
 uint32_t port;
@@ -138,18 +173,18 @@ main(int argc, char* argv[])
     uint32_t seed = 3;
     int runDSR = 0;
     int echo = 0;
+    double logginginterval = 0.1;
     γ = 120;
     α = 5;
 
     //energymodel
     initialEnergy = 50; // joule
     double voltage = 3.0;       // volts
-    //double txPowerEnd = 36.0;   // dbm
-    //double txPowerStart = txPowerEnd;  // dbm
+    double txPowerEnd = 36.0;   // dbm
+    double txPowerStart = txPowerEnd;  // dbm
     double idleCurrent = 0.0273; // Ampere
     double txCurrent = 4/voltage;   // Ampere
     
-    std::string rate = "1Mbps";
     std::string dataMode("DsssRate11Mbps");
     std::string phyMode("DsssRate11Mbps");
 
@@ -171,11 +206,8 @@ main(int argc, char* argv[])
         nSinks = 2;
     }
     for (int dsr = 0; dsr <= runDSR; dsr++) { //1 for only WDSR 2 for Compare.
-    //printf("imma transmit with %.2lfW for this test. The test is %s\n",  DbmToW(txPowerEnd), dsr ? "dsr": "wdsr");
 
-    depletedN = (int)nWifis;
     /********* Gnuplot ***********/
-
     aggregator = CreateObject<GnuplotAggregator>(dsr ? "Dsr-plot" : "Wdsr-plot");
     aggregator->SetTerminal("pdf");
     aggregator->SetTitle(dsr ? "Energy remaining (DSR)" : "Energy remaining (Wdsr)" );
@@ -186,13 +218,16 @@ main(int argc, char* argv[])
     depletedAggregator->SetTitle("Nodes Alive");
     depletedAggregator->SetLegend("Time (seconds)", "Number of nodes alive");
     
+    logging.SetDelay(Seconds(logginginterval));
+    logging.SetFunction(&Logger);
+    logging.Schedule();
     /******************************/
 
     RngSeedManager::SetSeed(seed);
     RngSeedManager::SetRun(1);
     NodeContainer adhocNodes;
     adhocNodes.Create(nWifis);
-    NetDeviceContainer allDevices;
+
 
     NS_LOG_INFO("setting the default phy and channel parameters");
     Config::SetDefault("ns3::WifiRemoteStationManager::NonUnicastMode", StringValue(phyMode));
@@ -210,15 +245,14 @@ main(int argc, char* argv[])
     if (!fixed){
       wifiChannel.AddPropagationLoss("ns3::FriisPropagationLossModel",
                                       "Frequency", DoubleValue(2.45e9));
-
     }
     else{
       wifiChannel.AddPropagationLoss("ns3::RangePropagationLossModel",
                                      "MaxRange",
                                      DoubleValue(110));
     }
-    //wifiPhy.Set("TxPowerStart", DoubleValue(txPowerStart));
-    //wifiPhy.Set("TxPowerEnd", DoubleValue(txPowerEnd));
+    wifiPhy.Set("TxPowerStart", DoubleValue(txPowerStart));
+    wifiPhy.Set("TxPowerEnd", DoubleValue(txPowerEnd));
     //wifiPhy.Set("TxPowerLevels", UintegerValue(nTxPowerLevels));
     wifiPhy.SetChannel(wifiChannel.Create());
 
@@ -240,89 +274,42 @@ main(int argc, char* argv[])
 #endif
     /******* Placement *******/
     MobilityHelper mobility;
-    if (!fixed) {
-    mobility.SetPositionAllocator("ns3::RandomBoxPositionAllocator",
+    if (fixed) {
+        Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
+        positionAlloc->Add(Vector(9, 75, 0.0));
+        positionAlloc->Add(Vector(75, 0.0, 0.0));
+        positionAlloc->Add(Vector(75+100, 0.0, 0.0));
+        positionAlloc->Add(Vector(75+200, 16.0, 0.0));
+        positionAlloc->Add(Vector(271, 115.0, 0.0));
+        positionAlloc->Add(Vector(75, 2*75.0, 0.0));
+        positionAlloc->Add(Vector(170, 114, 0.0));
+        positionAlloc->Add(Vector(134, 232, 0.0));
+        positionAlloc->Add(Vector(233, 210.0, 0.0));
+        mobility.SetPositionAllocator(positionAlloc);
+    } else {
+        mobility.SetPositionAllocator("ns3::RandomBoxPositionAllocator",
                                     "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=1500]"),
                                     "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=1500]"),
                                     "Z", StringValue("ns3::UniformRandomVariable[Min=1.0|Max=50.0]"));
-    }
-    else {
-
-    Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
-    positionAlloc->Add(Vector(9, 75, 0.0));
-    positionAlloc->Add(Vector(75, 0.0, 0.0));
-    positionAlloc->Add(Vector(75+100, 0.0, 0.0));
-    positionAlloc->Add(Vector(75+200, 16.0, 0.0));
-    positionAlloc->Add(Vector(271, 115.0, 0.0));
-    positionAlloc->Add(Vector(75, 2*75.0, 0.0));
-    positionAlloc->Add(Vector(170, 114, 0.0));
-    positionAlloc->Add(Vector(134, 232, 0.0));
-    positionAlloc->Add(Vector(233, 210.0, 0.0));
-    mobility.SetPositionAllocator(positionAlloc);
     }
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(adhocNodes);
     /**************************/
 
-    Ptr<BasicEnergySource> energySources[adhocNodes.GetN()];
-    DeviceEnergyModelContainer deviceModels[adhocNodes.GetN()];
-    WifiRadioEnergyModelHelper energyHelper;
-    // **** configure radio energy model*****
-    // IdleCurrentA:      The default radio Idle current in Ampere.
-    // CcaBusyCurrentA:   The default radio CCA Busy State current in Ampere.
-    // TxCurrentA:        The radio Tx current in Ampere.
-    // RxCurrentA:        The radio Rx current in Ampere.
-    // SwitchingCurrentA: The default radio Channel Switch current in Ampere.
-    // SleepCurrentA:     The radio Sleep current in Ampere.
-    // TxCurrentModel:    A pointer to the attached tx current model.
-    //energyHelper.Set("IdleCurrentA", DoubleValue(idleCurrent));
-    energyHelper.Set("TxCurrentA", DoubleValue(txCurrent));
-    //energyHelper.Set("RxCurrentA", DoubleValue(2 * txCurrent / 3));
-    // double eta = DbmToW(txPowerStart) / ((txCurrent - idleCurrent) * voltage);
-    // NS_LOG_UNCOND("eta feta is: " << eta);
-    // energyHelper.SetTxCurrentModel("ns3::LinearWifiTxCurrentModel",
-    //                                 "Voltage", DoubleValue(voltage),
-    //                                 "IdleCurrent", DoubleValue(idleCurrent),
-    //                                 "Eta", DoubleValue(eta));
-    // WifiRadioEnergyModel::WifiRadioEnergyDepletionCallback callback = MakeCallback(&depletion);
-    // energyHelper.SetDepletionCallback(callback);
-
-    for (uint32_t i = 0; i < adhocNodes.GetN();i++){
-        energySources[i] = CreateObject<BasicEnergySource>();
-        energySources[i]->SetInitialEnergy((i==0 && fixed) ? initialEnergy*2 : initialEnergy);
-        energySources[i]->SetSupplyVoltage(voltage);
-
-        energySources[i]->SetNode(adhocNodes.Get(i));
-        deviceModels[i] = energyHelper.Install(allDevices.Get(i), energySources[i]);
-        adhocNodes.Get(i)->AggregateObject(energySources[i]);
-    }
-
-    /********* CSV generator energy node ********/
-    for (uint32_t i = 0; i < adhocNodes.GetN(); ++i) {
-        Ptr<BasicEnergySource> NodeEnergySource = adhocNodes.Get(i)->GetObject<BasicEnergySource>();
-        if (NodeEnergySource != NULL) {
+    for (uint32_t i = 0; i < allDevices.GetN(); ++i) {
+        Ptr<NetDevice> staDevicePtr = allDevices.Get(i);
+        Ptr<WifiPhy> wifiPhyPtr = staDevicePtr->GetObject<WifiNetDevice>()->GetPhy();
+        if (wifiPhyPtr != NULL) {
             std::string context = std::to_string(i);
-            NodeEnergySource->TraceConnect("RemainingEnergy",
-                                            context,
-                                            MakeCallback(&TotalEnergy));
+            wifiPhyPtr->TraceConnect("PhyTxBegin",context, MakeCallback(&txsniff));
+            remainingEnergy[i] = initialEnergy;
             aggregator->Add2dDataset(context, std::string("Node: ") + context);
-        }
-    }
-    aggregator->Enable();
-    /********************************************/
-    /************CSV generator depleted node **********/
-    for (uint32_t i = 0; i < adhocNodes.GetN(); ++i)
-    {
-        Ptr<BasicEnergySource> NodeEnergySource = adhocNodes.Get(i)->GetObject<BasicEnergySource>();
-        if (NodeEnergySource != NULL) {
-            std::string context = std::to_string(i);
-            NodeEnergySource->TraceConnectWithoutContext("Depleted",
-                                            MakeCallback(&isDepleted));
         }
     }
     depletedAggregator->Add2dDataset("Nodes Alive", std::string("Nodes Alive: "));
     depletedAggregator->Set2dDatasetStyle("Nodes Alive", Gnuplot2dDataset::Style::STEPS);
     depletedAggregator->Enable();
+    aggregator->Enable();
 
     InternetStackHelper internet;
     DsrMainHelper dsrMain;
@@ -383,7 +370,7 @@ main(int argc, char* argv[])
         temp.Stop(Seconds(TotalTime));
     }
 #else
-    double m_packetInterval = 0.001;
+    double m_packetInterval = 0.1;
     uint16_t portNumber = 9;
     uint16_t sinkNodeId = 4;
     ApplicationContainer serverApps;
@@ -410,7 +397,7 @@ main(int argc, char* argv[])
     NS_LOG_INFO("Run Simulation.");
     Simulator::Stop(Seconds(TotalTime));
     /******* Animation *******/
-#if 0 //(dis/en)able animation
+#if 1 //(dis/en)able animation
     AnimationInterface anim(dsr ? "dsr-sim.xml" : "wdsr-sim.xml"); // Mandatory
     anim.EnablePacketMetadata(); // Optional
     anim.EnableIpv4RouteTracking("routingtable-wire.xml",
