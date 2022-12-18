@@ -747,16 +747,14 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             // Set the route for route reply
             SetRoute(nextHop, ipv4Address);
             
-            Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>(); // Create a pointer to the basic energy source object of the node
             
             uint8_t length =
                 rrep.GetLength(); // Get the length of the rrep header excluding the type header
            
             uint8_t lowestBat =
                 rrep.GetLowestBat(); // Get the length of the rrep header excluding the type header
-            double remainingBattery = 
-                nodeEnergySource->GetRemainingEnergy(); // Get the remaining battery of the node
-            
+            uint32_t nodeID =
+                node->GetId();
             uint8_t txCost = 
                 rrep.GetTxCost();
             uint8_t placeholder =
@@ -766,16 +764,13 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
             NS_LOG_DEBUG("**************************************");
             NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-            if (nodeEnergySource != 0){ 
-                rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
-                                   /*remainingBattery=*/remainingBattery,
-                                   /*initialEnergy=*/initialEnergy);
-                NS_LOG_DEBUG("txCost before setting: "<<(int)txCost);
-                rrep.SetTxCost(txCost+placeholder);
-                NS_LOG_DEBUG("txCost after setting: "<<(int)rrep.GetTxCost());
-            } else {
-                NS_LOG_DEBUG(">>> RREPTEST: No <BasicEnergySource> implemented yet");
-            }
+            
+            rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
+                               /*remainingEnergy=*/remainingEnergy[nodeID],
+                               /*initialEnergy=*/initialEnergy);
+            NS_LOG_DEBUG("txCost before setting: "<<(int)txCost);
+            rrep.SetTxCost(txCost+placeholder);
+            NS_LOG_DEBUG("txCost after setting: "<<(int)rrep.GetTxCost());
             NS_LOG_DEBUG("**************************************");
             NS_LOG_DEBUG("****************************************************************************");
             NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREP");
@@ -1017,16 +1012,14 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             wdsrRoutingHeader.SetSourceId(GetIDfromIP(realSource));
             wdsrRoutingHeader.SetDestId(255);
 
-            Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>(); // Create a pointer to the basic energy source object of the node
             
             uint8_t length =
                 rrep.GetLength(); // Get the length of the rrep header excluding the type header
            
             uint8_t lowestBat =
                 rrep.GetLowestBat(); // Get the length of the rrep header excluding the type header
-            double remainingBattery = 
-                nodeEnergySource->GetRemainingEnergy(); // Get the remaining battery of the node
-            
+            uint32_t nodeID =
+                node->GetId();
             uint8_t txCost = 
                 rrep.GetTxCost();
             uint8_t placeholder =
@@ -1036,16 +1029,14 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
             NS_LOG_DEBUG("**************************************");
             NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-            if (nodeEnergySource != 0){ 
-                rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
-                                   /*remainingBattery=*/remainingBattery,
-                                   /*initialEnergy=*/initialEnergy);
-                NS_LOG_DEBUG("txCost before setting: "<<(int)txCost);
-                rrep.SetTxCost(txCost+placeholder);
-                NS_LOG_DEBUG("txCost after setting: "<<(int)rrep.GetTxCost());
-            } else {
-                NS_LOG_DEBUG(">>> RREPTEST: No <BasicEnergySource> implemented yet");
-            }
+            
+            rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
+                               /*remainingEnergy=*/remainingEnergy[nodeID],
+                               /*initialEnergy=*/initialEnergy);
+            NS_LOG_DEBUG("txCost before setting: "<<(int)txCost);
+            rrep.SetTxCost(txCost+placeholder);
+            NS_LOG_DEBUG("txCost after setting: "<<(int)rrep.GetTxCost());
+            
             NS_LOG_DEBUG("**************************************");
             NS_LOG_DEBUG("****************************************************************************");
             NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREP");
@@ -1083,16 +1074,15 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                 if ((errorSrc == srcAddress) && (unreachNode == ipv4Address))
                 {
                     NS_LOG_DEBUG("The error link back to work again");
-                    Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>(); // Create a pointer to the basic energy source object of the node
+    
             
                     uint8_t length =
                         rreq.GetLength(); // Get the length of the rreq header excluding the type header
                    
                     uint8_t lowestBat =
                         rreq.GetLowestBat(); // Get the length of the rreq header excluding the type header
-                    double remainingBattery = 
-                        nodeEnergySource->GetRemainingEnergy(); // Get the remaining battery of the node
-                    
+                    uint32_t nodeID =
+                        node->GetId();
                     uint8_t txCost = 
                         rreq.GetTxCost();
                     uint8_t placeholder =
@@ -1102,14 +1092,11 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
                     NS_LOG_DEBUG("**************************************");
                     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-                    if (nodeEnergySource != 0){ 
-                        rreq.CalcLowestBat(/*lowestBat=*/lowestBat,
-                                           /*remainingBattery=*/remainingBattery,
-                                           /*initialEnergy=*/initialEnergy);
-                        rreq.SetTxCost(txCost+placeholder);
-                    } else {
-                        NS_LOG_DEBUG(">>> RREQTEST: No <BasicEnergySource> implemented yet");
-                    }
+                    rreq.CalcLowestBat(/*lowestBat=*/lowestBat,
+                                       /*remainingEnergy=*/remainingEnergy[nodeID],
+                                       /*initialEnergy=*/initialEnergy);
+                    rreq.SetTxCost(txCost+placeholder);
+                    
                     NS_LOG_DEBUG("**************************************");
                     NS_LOG_DEBUG("****************************************************************************");
                     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREQ");
@@ -1128,16 +1115,15 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                     newUnreach.SetErrorDst(errorDst);
                     newUnreach.SetSalvage(rerr.GetSalvage()); // Set the value about whether to
                                                               // salvage a packet or not
-                    Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>(); // Create a pointer to the basic energy source object of the node
+    
             
                     uint8_t length =
                         rreq.GetLength(); // Get the length of the rreq header excluding the type header
                    
                     uint8_t lowestBat =
                         rreq.GetLowestBat(); // Get the length of the rreq header excluding the type header
-                    double remainingBattery = 
-                        nodeEnergySource->GetRemainingEnergy(); // Get the remaining battery of the node
-                    
+                    uint32_t nodeID =
+                        node->GetId();
                     uint8_t txCost = 
                         rreq.GetTxCost();
                     uint8_t placeholder =
@@ -1147,14 +1133,12 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
                     NS_LOG_DEBUG("**************************************");
                     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-                    if (nodeEnergySource != 0){ 
-                        rreq.CalcLowestBat(/*lowestBat=*/lowestBat,
-                                           /*remainingBattery=*/remainingBattery,
-                                           /*initialEnergy=*/initialEnergy);
-                        rreq.SetTxCost(txCost+placeholder);
-                    } else {
-                        NS_LOG_DEBUG(">>> RREQTEST: No <BasicEnergySource> implemented yet");
-                    }
+                    
+                    rreq.CalcLowestBat(/*lowestBat=*/lowestBat,
+                                       /*remainingEnergy=*/remainingEnergy[nodeID],
+                                       /*initialEnergy=*/initialEnergy);
+                    rreq.SetTxCost(txCost+placeholder);
+                    
                     NS_LOG_DEBUG("**************************************");
                     NS_LOG_DEBUG("****************************************************************************");
                     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREQ");
@@ -1166,16 +1150,15 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             }
             else
             {
-                Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>(); // Create a pointer to the basic energy source object of the node
+
             
                 uint8_t length =
                     rreq.GetLength(); // Get the length of the rreq header excluding the type header
                
                 uint8_t lowestBat =
                     rreq.GetLowestBat(); // Get the length of the rreq header excluding the type header
-                double remainingBattery = 
-                    nodeEnergySource->GetRemainingEnergy(); // Get the remaining battery of the node
-                
+                uint32_t nodeID =
+                    node->GetId();
                 uint8_t txCost = 
                     rreq.GetTxCost();
                 uint8_t placeholder =
@@ -1185,14 +1168,11 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
                 NS_LOG_DEBUG("**************************************");
                 NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-                if (nodeEnergySource != 0){ 
-                    rreq.CalcLowestBat(/*lowestBat=*/lowestBat,
-                                       /*remainingBattery=*/remainingBattery,
-                                       /*initialEnergy=*/initialEnergy);
-                    rreq.SetTxCost(txCost+placeholder);
-                } else {
-                    NS_LOG_DEBUG(">>> RREQTEST: No <BasicEnergySource> implemented yet");
-                }
+                
+                rreq.CalcLowestBat(/*lowestBat=*/lowestBat,
+                                   /*remainingEnergy=*/remainingEnergy[nodeID],
+                                   /*initialEnergy=*/initialEnergy);
+                rreq.SetTxCost(txCost+placeholder);
                 NS_LOG_DEBUG("**************************************");
                 NS_LOG_DEBUG("****************************************************************************");
                 NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREQ");

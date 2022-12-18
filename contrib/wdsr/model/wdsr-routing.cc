@@ -2976,33 +2976,29 @@ WDsrRouting::SendInitialRequest(Ipv4Address source, Ipv4Address destination, uin
     rreqHeader.SetId(m_requestId);
 
     Ptr<Node> node = GetNodeWithAddress(m_mainAddress);
-    Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>(); // Create a pointer to the basic energy source object of the node
             
     uint8_t length =
-        rreqHeader.GetLength(); // Get the length of the rreqHeader header excluding the type header
+      rreqHeader.GetLength(); // Get the length of the rreqHeader header excluding the type header
    
     uint8_t lowestBat =
-        rreqHeader.GetLowestBat(); // Get the length of the rreqHeader header excluding the type header
-    double remainingBattery = 
-        nodeEnergySource->GetRemainingEnergy(); // Get the remaining battery of the node
-    
+      rreqHeader.GetLowestBat(); // Get the length of the rreqHeader header excluding the type header
+    uint32_t nodeID =
+      node->GetId();
     uint8_t txCost = 
-        rreqHeader.GetTxCost();
+      rreqHeader.GetTxCost();
     uint8_t placeholder =
-        1;  // ! Set this to whatever the txCost is
+      1;  // ! Set this to whatever the txCost is
 
     wdsrRoutingHeader.SetPayloadLength(length + 2);
 
     NS_LOG_DEBUG("**************************************");
     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-    if (nodeEnergySource != 0){ 
-        rreqHeader.CalcLowestBat(/*lowestBat=*/lowestBat,
-                           /*remainingBattery=*/remainingBattery,
-                           /*initialEnergy=*/initialEnergy);
-        rreqHeader.SetTxCost(txCost+placeholder);
-    } else {
-        NS_LOG_DEBUG(">>> RREQTEST: No <BasicEnergySource> implemented yet");
-    }
+   
+    rreqHeader.CalcLowestBat(/*lowestBat=*/lowestBat,
+                       /*remainingEnergy=*/remainingEnergy[nodeID],
+                       /*initialEnergy=*/initialEnergy);
+    rreqHeader.SetTxCost(txCost+placeholder);
+    
     NS_LOG_DEBUG("**************************************");
     NS_LOG_DEBUG("****************************************************************************");
     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREQ");
@@ -3442,16 +3438,14 @@ WDsrRouting::SendGratuitousReply(Ipv4Address source,
         wdsrRoutingHeader.SetSourceId(GetIDfromIP(replySrc));
         wdsrRoutingHeader.SetDestId(GetIDfromIP(replyDst));
         Ptr<Node> node = GetNodeWithAddress(m_mainAddress);
-        Ptr<BasicEnergySource> nodeEnergySource = node->GetObject<BasicEnergySource>(); // Create a pointer to the basic energy source object of the node
             
         uint8_t length =
             rrep.GetLength(); // Get the length of the rrep header excluding the type header
        
         uint8_t lowestBat =
             rrep.GetLowestBat(); // Get the length of the rrep header excluding the type header
-        double remainingBattery = 
-            nodeEnergySource->GetRemainingEnergy(); // Get the remaining battery of the node
-        
+        uint32_t nodeID =
+          node->GetId();
         uint8_t txCost = 
             rrep.GetTxCost();
         uint8_t placeholder =
@@ -3461,14 +3455,12 @@ WDsrRouting::SendGratuitousReply(Ipv4Address source,
 
         NS_LOG_DEBUG("**************************************");
         NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-        if (nodeEnergySource != 0){ 
-            rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
-                               /*remainingBattery=*/remainingBattery,
-                               /*initialEnergy=*/initialEnergy);
-            rrep.SetTxCost(txCost+placeholder);
-        } else {
-            NS_LOG_DEBUG(">>> RREPTEST: No <BasicEnergySource> implemented yet");
-        }
+        
+        rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
+                           /*remainingEnergy=*/remainingEnergy[nodeID],
+                           /*initialEnergy=*/initialEnergy);
+        rrep.SetTxCost(txCost+placeholder);
+        
         NS_LOG_DEBUG("**************************************");
 
         wdsrRoutingHeader.SetPayloadLength(uint16_t(length) + 2);

@@ -4,4 +4,5 @@
     extern uint8_t α;
     extern uint8_t γ;
     extern double initialEnergy;
+    extern double remainingEnergy[];
     #endif
