@@ -53,7 +53,7 @@ using namespace ns3;
 /*****
 *   Todos
 *   [ ] correct parameters.
-*   [ ] new energy.
+*   [x] new energy.
 *   [ ] plot with new energy model.
 *   [ ] Better transmission for random.
 */
@@ -69,9 +69,11 @@ uint32_t packets[100];
 // Initializing extern variables (Type should only be cast here)
 uint8_t γ;
 uint8_t α;
+double voltage = 3;
+double eta = 0.875;
+double idleW = voltage*0.575;
 double initialEnergy;
 double Oldtime;
-double idleW = 0.5;
 NetDeviceContainer allDevices;
 Timer logging;
 std::string rate = "1Mbps";
@@ -102,7 +104,7 @@ void Logger() {
         }
     }
     depletedAggregator->Write2d("Nodes Alive", Simulator::Now().GetSeconds(), depleted);
-    if (depleted == nWifis-1 && !logonce) {
+    if (depleted <= nWifis-1 && !logonce) {
         printf("%lf\n", Simulator::Now().GetSeconds());
         logonce = 1;
         //Simulator::Destroy();
@@ -112,7 +114,7 @@ void Logger() {
 
 void txsniff(std::string nodeID, Ptr< const Packet > packet, double txPowerW) {
     //NS_LOG_UNCOND ("node "<<nodeID<<" time "<<Simulator::Now ().GetSeconds ()<<" power "<<txPowerW<<" size "<<packet->GetSize());
-    remainingEnergy[std::stoi(nodeID)] -= txPowerW*DataRate(rate).CalculateBytesTxTime(packet->GetSize()).GetSeconds();
+    remainingEnergy[std::stoi(nodeID)] -= (1/eta)*txPowerW*DataRate(rate).CalculateBytesTxTime(packet->GetSize()).GetSeconds();
     packets[std::stoi(nodeID)] += packet->GetSize();
 }
 
@@ -181,7 +183,7 @@ main(int argc, char* argv[])
 
     //energymodel
     initialEnergy = 50; // joule
-    double txPowerEnd = 36.0;   // dbm
+    double txPowerEnd = 31.76;   // dbm
     double txPowerStart = txPowerEnd;  // dbm
 
     
