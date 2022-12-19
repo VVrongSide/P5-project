@@ -292,7 +292,7 @@ WDsrOptionRreqHeader::WDsrOptionRreqHeader()
 {
     SetType(1);
     SetLength(6 + m_ipv4Address.size() * 4);
-    SetLowestBat(0x7f);
+    SetLowestBat(0x3f);
     SetTxCost(0x00);
 }
 
@@ -398,8 +398,8 @@ void
 WDsrOptionRreqHeader::CalcLowestBat(double remainingBattery, double initialJoules)
 {
     NS_LOG_DEBUG(">>> RREQTEST: This is remaining battery: "<<remainingBattery<<" of "<<initialJoules<<" Joules");
-    uint8_t batPct = (remainingBattery/initialJoules)*0x7f; // 0x7f er 127, benjamin er tosset
-    NS_LOG_DEBUG(">>> RREQTEST: This is remaining battery in 127th parts: "<<(int)batPct<<"/127 parts");
+    uint8_t batPct = (remainingBattery/initialJoules)*0x3f; // 0x3f er 63, benjamin er tosset
+    NS_LOG_DEBUG(">>> RREQTEST: This is remaining battery in 63th parts: "<<(int)batPct<<"/63 parts");
     if (m_lowestBat>batPct){
         NS_LOG_DEBUG(">>>  RREQTEST: This is when lowestBat > batPct | "<<(int)m_lowestBat<<" > "<<(int)batPct);
         SetLowestBat(batPct);
@@ -437,8 +437,8 @@ WDsrOptionRreqHeader::Serialize(Buffer::Iterator start) const
     NS_LOG_DEBUG(">>>>>>> Data inside m_identification: "<<(int)m_identification);
     NS_LOG_DEBUG(">>>>>>> Data inside m_lowestBat: "<<(int)m_lowestBat);
     NS_LOG_DEBUG(">>>>>>> Data inside m_txCost: "<<(int)m_txCost);
-    i.WriteHtonU16((m_identification<<12)+(m_lowestBat<<5)+m_txCost);
-    NS_LOG_DEBUG(">>>>>>> Data before transmission: "<<(int)(m_identification<<12)+(m_lowestBat<<5)+m_txCost);
+    i.WriteHtonU16((m_identification<<11)+(m_lowestBat<<5)+m_txCost);
+    NS_LOG_DEBUG(">>>>>>> Data before transmission: "<<(int)(m_identification<<11)+(m_lowestBat<<5)+m_txCost);
     WriteTo(i, m_target);
 
     for (VectorIpv4Address_t::const_iterator it = m_ipv4Address.begin(); it != m_ipv4Address.end();
@@ -459,8 +459,8 @@ WDsrOptionRreqHeader::Deserialize(Buffer::Iterator start)
     SetLength(i.ReadU8());
     uint16_t receivedIdentification = i.ReadNtohU16();
     NS_LOG_DEBUG(">>>>>>> Data inside received identification: "<<(int)receivedIdentification);
-    m_identification = (receivedIdentification>>12)&0x0f;
-    m_lowestBat = (receivedIdentification>>5)&0x7f;
+    m_identification = (receivedIdentification>>11)&0x1f;
+    m_lowestBat = (receivedIdentification>>5)&0x3f;
     m_txCost = (receivedIdentification)&0x1f;
     NS_LOG_DEBUG(">>>>>>> Data inside m_identification: "<<(int)m_identification);
     NS_LOG_DEBUG(">>>>>>> Data inside m_lowestBat: "<<(int)m_lowestBat);
@@ -510,7 +510,7 @@ WDsrOptionRrepHeader::WDsrOptionRrepHeader()
 {
     SetType(2);
     SetLength(2 + m_ipv4Address.size() * 4);
-    SetLowestBat(0x7f);
+    SetLowestBat(0x3f);
     SetTxCost(0x00);
 }
 
@@ -585,8 +585,8 @@ void
 WDsrOptionRrepHeader::CalcLowestBat(double remainingBattery, double initialJoules)
 {
     NS_LOG_DEBUG(">>> RREPTEST: This is remaining battery: "<<remainingBattery<<" Joules");
-    uint8_t batPct = (remainingBattery/initialJoules)*0x7f; // 0x7f er 127, benjamin er tosset
-    NS_LOG_DEBUG(">>> RREPTEST: This is remaining battery in 127th parts: "<<(int)batPct<<"/127 parts");
+    uint8_t batPct = (remainingBattery/initialJoules)*0x3f; // 0x3f er 127, benjamin er tosset
+    NS_LOG_DEBUG(">>> RREPTEST: This is remaining battery in 63th parts: "<<(int)batPct<<"/63 parts");
     if (m_lowestBat>batPct){
         NS_LOG_DEBUG(">>>  RREPTEST: This is when lowestBat > batPct | "<<(int)m_lowestBat<<" > "<<(int)batPct);
         SetLowestBat(batPct);
