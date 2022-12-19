@@ -770,10 +770,8 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             NS_LOG_DEBUG("**************************************");
             NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
             NS_LOG_FUNCTION(this<<" Calculating lowestBat:");
-            if (source != ipv4Address){
-                rrep.CalcLowestBat(/*remainingEnergy=*/remainingEnergy[nodeID],
-                                    /*initialEnergy=*/initialEnergy);
-            }
+            rrep.SetLowestBat(rreq.GetLowestBat());
+            
             NS_LOG_DEBUG("txCost before setting: "<<(int)txCost);
             rrep.SetTxCost(hops);
             NS_LOG_DEBUG("txCost after setting: "<<(int)rrep.GetTxCost());
@@ -1045,10 +1043,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             NS_LOG_DEBUG("**************************************");
             NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
             NS_LOG_FUNCTION(this<<" Calculating lowestBat:");
-            if (source != ipv4Address){
-                rrep.CalcLowestBat( /*remainingEnergy=*/remainingEnergy[nodeID],
-                                    /*initialEnergy=*/initialEnergy);
-            }
+            rrep.SetLowestBat(rreq.GetLowestBat());
             NS_LOG_DEBUG("txCost before setting: "<<(int)txCost);
             rrep.SetTxCost(hops);
             NS_LOG_DEBUG("txCost after setting: "<<(int)rrep.GetTxCost());
