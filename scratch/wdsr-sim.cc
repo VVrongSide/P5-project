@@ -64,6 +64,7 @@ bool logonce;
 
 //double initialEnergy[100];
 double remainingEnergy[100];
+double initialEnergy[100];
 uint32_t packets[100];
 
 // Initializing extern variables (Type should only be cast here)
@@ -71,8 +72,8 @@ uint8_t γ;
 uint8_t α;
 double voltage = 3;
 double eta = 0.875;
-double idleW = voltage*0.575;
-double initialEnergy;
+double idleW = voltage*0.0575;
+double initialBattery;
 double Oldtime;
 NetDeviceContainer allDevices;
 Timer logging;
@@ -171,7 +172,7 @@ main(int argc, char* argv[])
 
     // General parameters
     uint32_t nSinks = 10;
-    double TotalTime = 100.0;
+    double TotalTime = 500.0;
     double dataTime = 19.0;
     double ppers = 100;
     uint32_t packetSize = 1000;
@@ -180,13 +181,13 @@ main(int argc, char* argv[])
     int runDSR = 0;
     int echo = 0;
     double logginginterval = 0.01;
-    γ = 120;
-    α = 5;
+    γ = 80;
+    α = 6;
 
     //energymodel
-    initialEnergy = 127; // joule
+    initialBattery = 127; // joule
     double voltage = 3.0;       // volts
-    double txPowerEnd = 31.76;   // dbm
+    double txPowerEnd = 36.0;   // dbm
     double txPowerStart = txPowerEnd;  // dbm
 
     
@@ -311,9 +312,15 @@ main(int argc, char* argv[])
             NS_ASSERT(staDevicePtr == adhocNodes.Get(i)->GetDevice(0));
             std::string context = std::to_string(i);
             wifiPhyPtr->TraceConnect("PhyTxBegin",context, MakeCallback(&txsniff));
-            remainingEnergy[i] = initialEnergy;
             aggregator->Add2dDataset(context, std::string("Node: ") + context);
             packets[i] = 0;
+            if (i==0||i==4){
+                remainingEnergy[i] = initialBattery*2;
+                initialEnergy[i] = initialBattery*2;
+            } else{
+                remainingEnergy[i] = initialBattery;
+                initialEnergy[i] = initialBattery;
+            }
         }
     }
     depletedAggregator->Add2dDataset("Nodes Alive", std::string("Nodes Alive: "));

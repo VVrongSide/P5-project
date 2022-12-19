@@ -1105,7 +1105,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                     NS_LOG_FUNCTION(this<<" Calculating lowestBat:");
                     if (source != ipv4Address){
                         rreq.CalcLowestBat(/*remainingEnergy=*/remainingEnergy[nodeID],
-                                           /*initialEnergy=*/initialEnergy);
+                                           /*initialEnergy=*/initialEnergy[nodeID]);
                     }
                     rreq.SetTxCost(txCost+placeholder);
                         
@@ -1146,7 +1146,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                     NS_LOG_FUNCTION(this<<" Calculating lowestBat:");
                     if (source != ipv4Address){
                         rreq.CalcLowestBat(/*remainingEnergy=*/remainingEnergy[nodeID],
-                                           /*initialEnergy=*/initialEnergy);
+                                           /*initialEnergy=*/initialEnergy[nodeID]);
                     }
                     rreq.SetTxCost(txCost+placeholder);
                     
@@ -1179,7 +1179,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                 NS_LOG_FUNCTION(this<<" Calculating lowestBat:");
                 if (source != ipv4Address){
                     rreq.CalcLowestBat(/*remainingEnergy=*/remainingEnergy[nodeID],
-                                       /*initialEnergy=*/initialEnergy);
+                                       /*initialEnergy=*/initialEnergy[nodeID]);
                 }
                 rreq.SetTxCost(txCost+placeholder);
                 NS_LOG_DEBUG("**************************************");
