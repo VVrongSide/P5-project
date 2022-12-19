@@ -3,13 +3,15 @@
 This project uses ns3 as a base for testing weighted routing for mesh networks.
 
 ## building
-to build this project run:
+Dependecies: Cmake, gnuplot  
+To build this project run:
 ```
 make all
-make ns3/src/patch
 ```
 running `make` will show what the makefile contains, this is helpfull to get an overview of its functions.
-
+## Plotting
+There is a few plots that can be made. Wdsr can be plottet with: `make plot`  
+Otherwise scripts for plots can be found in /test/*
 ## Using
 All simulations are done in `scratch/wdsr.cc`
 
