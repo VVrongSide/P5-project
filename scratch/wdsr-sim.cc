@@ -52,9 +52,9 @@ using namespace ns3;
 
 /*****
 *   Todos
-*   [ ] correct parameters.
+*   [x] correct parameters.
 *   [x] new energy.
-*   [ ] plot with new energy model.
+*   [x] plot with new energy model.
 *   [ ] Better transmission for random.
 */
 
@@ -62,7 +62,6 @@ uint32_t nWifis = 20;
 bool fixed = 0;
 bool logonce;
 
-//double initialEnergy[100];
 double remainingEnergy[100];
 double initialEnergy[100];
 uint32_t packets[100];
@@ -71,8 +70,8 @@ uint32_t packets[100];
 uint8_t γ;
 uint8_t α;
 double voltage = 3;
-double eta = 0.875;
-double idleW = voltage*0.0575;
+double eta = 0.785;
+double idleW = voltage*0.575;
 double initialBattery;
 double Oldtime;
 NetDeviceContainer allDevices;
@@ -96,12 +95,14 @@ void Logger() {
     CalcIdleAll();
     uint32_t depleted = nWifis;
     for (uint32_t i = 0; i < nWifis; i++){
-        //NS_LOG_UNCOND ("node "<<i<<"energy "<<remainingEnergy[i]<<" s "<<Simulator::Now().GetSeconds());
-        aggregator->Write2d(std::to_string(i), Simulator::Now().GetSeconds(), remainingEnergy[i]);
-        if (remainingEnergy[i] <= 0.0) {
-            depleted--;
-            if (allDevices.Get(i)->GetObject<WifiNetDevice>()->GetPhy()->IsStateIdle())
-                allDevices.Get(i)->GetObject<WifiNetDevice>()->GetPhy()->SetOffMode();
+        if (!(fixed && (i == 0 || i == 4))) {
+          //NS_LOG_UNCOND ("node "<<i<<"energy "<<remainingEnergy[i]<<" s "<<Simulator::Now().GetSeconds());
+          aggregator->Write2d(std::to_string(i), Simulator::Now().GetSeconds(), remainingEnergy[i]);
+          if (remainingEnergy[i] <= 0.0) {
+              depleted--;
+              if (allDevices.Get(i)->GetObject<WifiNetDevice>()->GetPhy()->IsStateIdle())
+                  allDevices.Get(i)->GetObject<WifiNetDevice>()->GetPhy()->SetOffMode();
+          }
         }
     }
     depletedAggregator->Write2d("Nodes Alive", Simulator::Now().GetSeconds(), depleted);
@@ -150,7 +151,7 @@ main(int argc, char* argv[])
   LogComponentEnable ("Ipv4EndPointDemux", LOG_LEVEL_ALL);
 #endif
 
-#if 1
+#if 0
   LogComponentEnable ("WDsrOptions", LOG_DEBUG);
   LogComponentEnable ("WDsrOptions", LOG_FUNCTION);
   //LogComponentEnable ("WDsrHelper", LOG_LEVEL_ALL);
@@ -172,7 +173,7 @@ main(int argc, char* argv[])
 
     // General parameters
     uint32_t nSinks = 10;
-    double TotalTime = 500.0;
+    double TotalTime = 400.0;
     double dataTime = 19.0;
     double ppers = 100;
     uint32_t packetSize = 1000;
@@ -181,13 +182,12 @@ main(int argc, char* argv[])
     int runDSR = 0;
     int echo = 0;
     double logginginterval = 0.01;
-    γ = 80;
+    γ = 40;
     α = 6;
 
     //energymodel
-    initialBattery = 127; // joule
-    double voltage = 3.0;       // volts
-    double txPowerEnd = 36.0;   // dbm
+    initialBattery = 750; // joule
+    double txPowerEnd = 31.76;   // dbm
     double txPowerStart = txPowerEnd;  // dbm
 
     
@@ -197,6 +197,7 @@ main(int argc, char* argv[])
     // Allow users to override the default parameters and set it to new ones from CommandLine.
     CommandLine cmd(__FILE__);
     cmd.AddValue("nWifis", "Number of wifi nodes", nWifis);
+    cmd.AddValue("Time", "Running time for the simulation", TotalTime);
     cmd.AddValue("nSinks", "Number of SINK traffic nodes", nSinks);
     cmd.AddValue("rate", "CBR traffic rate(in kbps), Default:8", rate);
     cmd.AddValue("packetSize", "The packet size", packetSize);
@@ -219,8 +220,8 @@ main(int argc, char* argv[])
     /********* Gnuplot ***********/
     aggregator = CreateObject<GnuplotAggregator>(dsr ? "Dsr-plot" : "Wdsr-plot");
     aggregator->SetTerminal("pdf");
-    aggregator->SetTitle(dsr ? "Energy remaining (DSR)" : "Energy remaining (Wdsr)" );
-    aggregator->SetLegend("Time (seconds)", "Energy (J)");  // (x-axis, y-axis)
+    aggregator->SetTitle(dsr ? "Energy remaining (DSR)" : "Energy remaining (WDSR)" );
+    aggregator->SetLegend("Time (seconds)", "Energy (joules)");  // (x-axis, y-axis)
     aggregator->SetExtra("set mxtics 2\nset mytics 2\nset style line 81 lt 0 lc rgb \"#808080\" lw 0.5\nset grid xtics\nset grid ytics\nset grid mxtics\nset grid mytics\nset grid back ls 81");
 
     depletedAggregator = CreateObject<GnuplotAggregator>(dsr ? "DsrAlive-plot" : "WdsrAlive-plot");
@@ -299,8 +300,8 @@ main(int argc, char* argv[])
         mobility.SetPositionAllocator(positionAlloc);
     } else {
         mobility.SetPositionAllocator("ns3::RandomBoxPositionAllocator",
-                                    "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=30000]"),
-                                    "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=30000]"),
+                                    "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=15000]"),
+                                    "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=15000]"),
                                     "Z", StringValue("ns3::UniformRandomVariable[Min=1.0|Max=50.0]"));
     }
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -314,11 +315,13 @@ main(int argc, char* argv[])
             NS_ASSERT(staDevicePtr == adhocNodes.Get(i)->GetDevice(0));
             std::string context = std::to_string(i);
             wifiPhyPtr->TraceConnect("PhyTxBegin",context, MakeCallback(&txsniff));
-            aggregator->Add2dDataset(context, std::string("Node: ") + context);
+            if (!(fixed && (i == 0 || i == 4))) {
+                aggregator->Add2dDataset(context, std::string("Node: ") + context);
+            }
             packets[i] = 0;
-            if (i==0||i==4){
-                remainingEnergy[i] = initialBattery*2;
-                initialEnergy[i] = initialBattery*2;
+            if (fixed && (i==0||i==4)){
+                remainingEnergy[i] = initialBattery*4;
+                initialEnergy[i] = initialBattery*4;
             } else{
                 remainingEnergy[i] = initialBattery;
                 initialEnergy[i] = initialBattery;
@@ -391,7 +394,7 @@ main(int argc, char* argv[])
       }
 #endif
     } else {
-      double m_packetInterval = 0.1;
+      double m_packetInterval = 0.01;
       uint16_t sinkNodeId = 4;
       ApplicationContainer serverApps;
       if (echo) {

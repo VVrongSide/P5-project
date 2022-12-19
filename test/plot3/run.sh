@@ -6,8 +6,7 @@
 for i in {0..30}
 do
   # echo "$i" >> timeofdeath.dat
-  echo "$i" >> y.dat
-  ../../ns3/build/scratch/ns3-dev-wdsr-sim-default --fixed=0 --alpha="$i" >> timeofdeath.dat
+  ../../ns3/build/scratch/ns3-dev-wdsr-sim-default --fixed=0 --alpha="$i" >> timeofdeath.dat && echo "$i" >> y.dat
 done
 paste y.dat timeofdeath.dat > xy.dat
 
