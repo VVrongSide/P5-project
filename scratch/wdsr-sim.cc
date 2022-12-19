@@ -221,12 +221,14 @@ main(int argc, char* argv[])
     aggregator->SetTerminal("pdf");
     aggregator->SetTitle(dsr ? "Energy remaining (DSR)" : "Energy remaining (Wdsr)" );
     aggregator->SetLegend("Time (seconds)", "Energy (J)");  // (x-axis, y-axis)
-    
+    aggregator->SetExtra("set mxtics 2\nset mytics 2\nset style line 81 lt 0 lc rgb \"#808080\" lw 0.5\nset grid xtics\nset grid ytics\nset grid mxtics\nset grid mytics\nset grid back ls 81");
+
     depletedAggregator = CreateObject<GnuplotAggregator>(dsr ? "DsrAlive-plot" : "WdsrAlive-plot");
     depletedAggregator->SetTerminal("pdf");
     depletedAggregator->SetTitle("Nodes Alive");
     depletedAggregator->SetLegend("Time (seconds)", "Number of nodes alive");
-    
+    depletedAggregator->SetExtra("set mxtics 2\nset mytics 2\nset style line 81 lt 0 lc rgb \"#808080\" lw 0.5\nset grid xtics\nset grid ytics\nset grid mxtics\nset grid mytics\nset grid back ls 81");
+
     logging.SetDelay(Seconds(logginginterval));
     logging.SetFunction(&Logger);
     logging.Schedule();
@@ -297,8 +299,8 @@ main(int argc, char* argv[])
         mobility.SetPositionAllocator(positionAlloc);
     } else {
         mobility.SetPositionAllocator("ns3::RandomBoxPositionAllocator",
-                                    "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=1500]"),
-                                    "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=1500]"),
+                                    "X", StringValue("ns3::UniformRandomVariable[Min=0|Max=30000]"),
+                                    "Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=30000]"),
                                     "Z", StringValue("ns3::UniformRandomVariable[Min=1.0|Max=50.0]"));
     }
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -347,69 +349,70 @@ main(int argc, char* argv[])
     uint16_t port = 9;
     double randomStartTime =
         (1 / ppers) / nSinks; // distributed btw 1s evenly as we are sending 4pkt/s
+    if (!fixed) {
 #if 0
-    for (uint32_t i = 0; i < nSinks; ++i)
-    {
-        PacketSinkHelper sink("ns3::UdpSocketFactory",
-                              InetSocketAddress(Ipv4Address::GetAny(), port));
-        ApplicationContainer apps_sink = sink.Install(adhocNodes.Get(i));
-        apps_sink.Start(Seconds(0.0));
-        apps_sink.Stop(Seconds(TotalTime));
+      for (uint32_t i = 0; i < nSinks; ++i)
+      {
+          PacketSinkHelper sink("ns3::UdpSocketFactory",
+                                InetSocketAddress(Ipv4Address::GetAny(), port));
+          ApplicationContainer apps_sink = sink.Install(adhocNodes.Get(i));
+          apps_sink.Start(Seconds(0.0));
+          apps_sink.Stop(Seconds(TotalTime));
 
-        OnOffHelper onoff1("ns3::UdpSocketFactory",
-                           Address(InetSocketAddress(allInterfaces.GetAddress(i), port)));
-        onoff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1.0]"));
-        onoff1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0.0]"));
-        onoff1.SetAttribute("PacketSize", UintegerValue(packetSize));
-        onoff1.SetAttribute("DataRate", DataRateValue(DataRate(rate)));
+          OnOffHelper onoff1("ns3::UdpSocketFactory",
+                             Address(InetSocketAddress(allInterfaces.GetAddress(i), port)));
+          onoff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1.0]"));
+          onoff1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0.0]"));
+          onoff1.SetAttribute("PacketSize", UintegerValue(packetSize));
+          onoff1.SetAttribute("DataRate", DataRateValue(DataRate(rate)));
 
-        ApplicationContainer apps1 = onoff1.Install(adhocNodes.Get(i+ nWifis - nSinks));
-        apps1.Start(Seconds(dataStart + i * randomStartTime));
-        apps1.Stop(Seconds(dataTime + i * randomStartTime));
-    }
-#elif 0
-        OnOffHelper onoff1("ns3::UdpSocketFactory",
-                           Address());
-        onoff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1.0]"));
-        onoff1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0.0]"));
-        onoff1.SetAttribute("PacketSize", UintegerValue(packetSize));
-        onoff1.SetAttribute("DataRate", DataRateValue(DataRate(rate)));
-    for (int i = 0; i < nSinks; i++)
-    {
-        Ptr<Socket> sink = SetupPacketReceive(allInterfaces.GetAddress(i), adhocNodes.Get(i));
-
-        
-        AddressValue remoteAddress(InetSocketAddress(allInterfaces.GetAddress(i), port));
-        onoff1.SetAttribute("Remote", remoteAddress);
-
-        Ptr<UniformRandomVariable> var = CreateObject<UniformRandomVariable>();
-        ApplicationContainer temp = onoff1.Install(adhocNodes.Get(i + nSinks));
-        temp.Start(Seconds(var->GetValue(0.0, 10.0)));
-        temp.Stop(Seconds(TotalTime));
-    }
+          ApplicationContainer apps1 = onoff1.Install(adhocNodes.Get(i+ nWifis - nSinks));
+          apps1.Start(Seconds(dataStart + i * randomStartTime));
+          apps1.Stop(Seconds(dataTime + i * randomStartTime));
+      }
 #else
-    double m_packetInterval = 0.1;
-    uint16_t sinkNodeId = 4;
-    ApplicationContainer serverApps;
-    if (echo) {
-        UdpEchoServerHelper echoServer(port);
-        serverApps = echoServer.Install(adhocNodes.Get(sinkNodeId));
-    } else {
-        PacketSinkHelper sink("ns3::UdpSocketFactory",
-                        InetSocketAddress(Ipv4Address::GetAny(), port));
-        serverApps = sink.Install(adhocNodes.Get(sinkNodeId));
-    }
-    serverApps.Start(Seconds(1.0));
-    serverApps.Stop(Seconds(TotalTime));
-    UdpEchoClientHelper echoClient(allInterfaces.GetAddress(sinkNodeId), port);
-    echoClient.SetAttribute("MaxPackets",
-                            UintegerValue((uint32_t)(TotalTime * (1 / m_packetInterval))));
-    echoClient.SetAttribute("Interval", TimeValue(Seconds(m_packetInterval)));
-    echoClient.SetAttribute("PacketSize", UintegerValue(packetSize));
-    ApplicationContainer clientApps = echoClient.Install(adhocNodes.Get(0));
-    clientApps.Start(Seconds(1.0));
-    clientApps.Stop(Seconds(TotalTime));
+      OnOffHelper onoff1("ns3::UdpSocketFactory",
+                         Address());
+      onoff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1.0]"));
+      onoff1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0.0]"));
+      onoff1.SetAttribute("PacketSize", UintegerValue(packetSize));
+      onoff1.SetAttribute("DataRate", DataRateValue(DataRate(rate)));
+      for (int i = 0; i < nSinks; i++)
+      {
+          Ptr<Socket> sink = SetupPacketReceive(allInterfaces.GetAddress(i), adhocNodes.Get(i));
+
+          AddressValue remoteAddress(InetSocketAddress(allInterfaces.GetAddress(i), port));
+          onoff1.SetAttribute("Remote", remoteAddress);
+
+          Ptr<UniformRandomVariable> var = CreateObject<UniformRandomVariable>();
+          ApplicationContainer temp = onoff1.Install(adhocNodes.Get(i + nSinks));
+          temp.Start(Seconds(var->GetValue(0.0, 10.0)));
+          temp.Stop(Seconds(TotalTime));
+      }
 #endif
+    } else {
+      double m_packetInterval = 0.1;
+      uint16_t sinkNodeId = 4;
+      ApplicationContainer serverApps;
+      if (echo) {
+          UdpEchoServerHelper echoServer(port);
+          serverApps = echoServer.Install(adhocNodes.Get(sinkNodeId));
+      } else {
+          PacketSinkHelper sink("ns3::UdpSocketFactory",
+                          InetSocketAddress(Ipv4Address::GetAny(), port));
+          serverApps = sink.Install(adhocNodes.Get(sinkNodeId));
+      }
+      serverApps.Start(Seconds(1.0));
+      serverApps.Stop(Seconds(TotalTime));
+      UdpEchoClientHelper echoClient(allInterfaces.GetAddress(sinkNodeId), port);
+      echoClient.SetAttribute("MaxPackets",
+                              UintegerValue((uint32_t)(TotalTime * (1 / m_packetInterval))));
+      echoClient.SetAttribute("Interval", TimeValue(Seconds(m_packetInterval)));
+      echoClient.SetAttribute("PacketSize", UintegerValue(packetSize));
+      ApplicationContainer clientApps = echoClient.Install(adhocNodes.Get(0));
+      clientApps.Start(Seconds(1.0));
+      clientApps.Stop(Seconds(TotalTime));
+    }
 
     Simulator::Stop(Seconds(TotalTime));
     /******* Animation *******/
@@ -431,8 +434,7 @@ main(int argc, char* argv[])
     /*************************/
     Simulator::Run();
     Simulator::Destroy();
-    for (int i = 0; i < 20; i++)
-        fprintf(stderr, "%d:%u ",i, packets[i]); 
-    fprintf(stderr, "\n");
+    for (int i = 0; i < nWifis; i++)
+        fprintf(stderr, "%d %u\n ",i, packets[i]);
     }
 }
