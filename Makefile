@@ -16,7 +16,7 @@ build:
 	ns3/ns3 build
 
 run:
-	ns3/ns3 run wdsr-sim
+	ns3/ns3 run "wdsr-sim --fixed=1"
 
 anim: netanim/NetAnim
 	netanim/NetAnim&

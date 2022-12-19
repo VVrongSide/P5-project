@@ -2993,10 +2993,6 @@ WDsrRouting::SendInitialRequest(Ipv4Address source, Ipv4Address destination, uin
 
     NS_LOG_DEBUG("**************************************");
     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-   
-    rreqHeader.CalcLowestBat(/*lowestBat=*/lowestBat,
-                       /*remainingEnergy=*/remainingEnergy[nodeID],
-                       /*initialEnergy=*/initialEnergy);
     rreqHeader.SetTxCost(txCost+placeholder);
     
     NS_LOG_DEBUG("**************************************");
@@ -3456,9 +3452,6 @@ WDsrRouting::SendGratuitousReply(Ipv4Address source,
         NS_LOG_DEBUG("**************************************");
         NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
         
-        rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
-                           /*remainingEnergy=*/remainingEnergy[nodeID],
-                           /*initialEnergy=*/initialEnergy);
         rrep.SetTxCost(txCost+placeholder);
         
         NS_LOG_DEBUG("**************************************");

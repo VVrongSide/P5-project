@@ -149,20 +149,22 @@ main(int argc, char* argv[])
   LogComponentEnable ("Ipv4EndPointDemux", LOG_LEVEL_ALL);
 #endif
 
-#if 0
-  LogComponentEnable ("WDsrOptions", LOG_LEVEL_ALL);
-  LogComponentEnable ("WDsrHelper", LOG_LEVEL_ALL);
-  LogComponentEnable ("WDsrRouting", LOG_LEVEL_ALL);
-  LogComponentEnable ("WDsrOptionHeader", LOG_LEVEL_ALL);
-  LogComponentEnable ("WDsrFsHeader", LOG_LEVEL_ALL);
-  LogComponentEnable ("WDsrGraReplyTable", LOG_LEVEL_ALL);
-  LogComponentEnable ("WDsrSendBuffer", LOG_LEVEL_ALL);
-  LogComponentEnable ("WDsrRouteCache", LOG_LEVEL_ALL);
-  LogComponentEnable ("WDsrMaintainBuffer", LOG_LEVEL_ALL);
+#if 1
+  LogComponentEnable ("WDsrOptions", LOG_DEBUG);
+  LogComponentEnable ("WDsrOptions", LOG_FUNCTION);
+  //LogComponentEnable ("WDsrHelper", LOG_LEVEL_ALL);
+  //LogComponentEnable ("WDsrRouting", LOG_DEBUG);
+  LogComponentEnable ("WDsrOptionHeader", LOG_DEBUG);
+  //LogComponentEnable ("WDsrFsHeader", LOG_LEVEL_ALL);
+  //LogComponentEnable ("WDsrGraReplyTable", LOG_LEVEL_ALL);
+  //LogComponentEnable ("WDsrSendBuffer", LOG_LEVEL_ALL);
+  LogComponentEnable ("WDsrRouteCache", LOG_DEBUG);
+  LogComponentEnable ("WDsrRouteCache", LOG_LOGIC);
+  /*LogComponentEnable ("WDsrMaintainBuffer", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrRreqTable", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrErrorBuffer", LOG_LEVEL_ALL);
   LogComponentEnable ("WDsrNetworkQueue", LOG_LEVEL_ALL);
-  
+  */
 #endif
     //LogComponentEnable("WifiRadioEnergyModel", LOG_DEBUG);
     NS_LOG_INFO("creating the nodes");
@@ -170,7 +172,7 @@ main(int argc, char* argv[])
     // General parameters
     uint32_t nSinks = 10;
     double TotalTime = 100.0;
-    //double dataTime = 19.0;
+    double dataTime = 19.0;
     double ppers = 100;
     uint32_t packetSize = 1000;
     double dataStart = 0.0; // start sending data at 10s
@@ -182,7 +184,8 @@ main(int argc, char* argv[])
     α = 5;
 
     //energymodel
-    initialEnergy = 50; // joule
+    initialEnergy = 127; // joule
+    double voltage = 3.0;       // volts
     double txPowerEnd = 31.76;   // dbm
     double txPowerStart = txPowerEnd;  // dbm
 
@@ -322,6 +325,7 @@ main(int argc, char* argv[])
     DsrMainHelper dsrMain;
     DsrHelper dsrH;
     dsrH.Set("CacheType", StringValue("PathCache"));
+
     WDsrMainHelper wdsrMain;
     WDsrHelper wdsr;
     wdsr.Set("CacheType", StringValue("PathCache"));

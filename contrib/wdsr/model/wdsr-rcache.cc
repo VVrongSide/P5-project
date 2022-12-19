@@ -202,7 +202,7 @@ WDsrRouteCache::GetTypeId()
 
 WDsrRouteCache::WDsrRouteCache()
     : m_vector(0),
-      m_maxEntriesEachDst(3),
+      m_maxEntriesEachDst(5),
       m_isLinkCache(false),
       m_ntimer(Timer::CANCEL_ON_DESTROY),
       m_delay(MilliSeconds(100))
@@ -780,11 +780,17 @@ WDsrRouteCache::AddRoute(WDsrRouteCacheEntry& rt)
     std::list<WDsrRouteCacheEntry> rtVector; // Declare the route cache entry vector
     Ipv4Address dst = rt.GetDestination();
     std::vector<Ipv4Address> route = rt.GetVector();
-
+    PrintVector(route);
     NS_LOG_DEBUG("  " << dst);
     std::map<Ipv4Address, std::list<WDsrRouteCacheEntry>>::const_iterator i =
         m_sortedRoutes.find(dst);
-
+    for (std::map<Ipv4Address, std::list<WDsrRouteCacheEntry>>::iterator j = m_sortedRoutes.begin(); j != m_sortedRoutes.end(); ++j){
+        NS_LOG_DEBUG("j.first: "<<j->first);
+        PrintRouteVector(j->second);
+    }
+    
+    NS_LOG_DEBUG("Length of routeVector: "<<i->second.size());
+    PrintRouteVector(i->second);
     if (i == m_sortedRoutes.end())
     {
         NS_LOG_DEBUG("------------------ 1");
@@ -797,6 +803,7 @@ WDsrRouteCache::AddRoute(WDsrRouteCacheEntry& rt)
         PrintRouteVector(rtVector);
         std::pair<std::map<Ipv4Address, std::list<WDsrRouteCacheEntry>>::iterator, bool> result =
             m_sortedRoutes.insert(std::make_pair(dst, rtVector));
+         NS_LOG_DEBUG("result.second: "<<(bool)result.second);
         return result.second;
     }
     else
@@ -852,21 +859,23 @@ WDsrRouteCache::AddRoute(WDsrRouteCacheEntry& rt)
                     NS_LOG_DEBUG("A table is not empty, running MTPR");
                     NS_LOG_DEBUG("Removing all lowestBat < "<<(int) threshold);
                     NS_LOG_DEBUG("Number of vectors at start is: "<<rtVector.size());
-                    for (std::list<WDsrRouteCacheEntry>::iterator j = rtVector.begin(); j != rtVector.end(); ++j)
+                    for (std::list<WDsrRouteCacheEntry>::iterator j = rtVector.begin(); j != rtVector.end();)
                     {
                         NS_LOG_DEBUG("lowestBat: "<<(int) j->GetLowestBat());
                         if (j->GetLowestBat() < threshold)
                         {
                             NS_LOG_DEBUG("-- Removed");
                             j = rtVector.erase(j);
-                            --j;
                             NS_LOG_DEBUG("Updated number of vectors: "<<rtVector.size());
+                        } else 
+                        {
+                             ++j;
                         }
                     }
                     rtVector.sort(CompareTxCost);
                 } else 
                 {
-                    NS_LOG_DEBUG("A table is empty, running MTRP");
+                    NS_LOG_DEBUG("A table is empty, running MMBCR");
                     rtVector.sort(CompareLowestBat); 
                 }
 
@@ -910,6 +919,7 @@ bool
 WDsrRouteCache::FindSameRoute(WDsrRouteCacheEntry& rt, std::list<WDsrRouteCacheEntry>& rtVector)
 {
     NS_LOG_FUNCTION(this);
+    NS_LOG_DEBUG("Checker jeg nogensinde her?");
     for (std::list<WDsrRouteCacheEntry>::iterator i = rtVector.begin(); i != rtVector.end(); ++i)
     {
         // return the first route in the route vector
@@ -1212,12 +1222,14 @@ WDsrRouteCache::Purge()
             }
             else
             {
+                NS_LOG_DEBUG("Erase1?");
                 ++i;
                 m_sortedRoutes.erase(itmp);
             }
         }
         else
         {
+            NS_LOG_DEBUG("Erase2?");
             ++i;
             m_sortedRoutes.erase(itmp);
         }

@@ -371,7 +371,7 @@ class WDsrOptionRreqHeader : public WDsrOptionHeader
     /**
     * \brief Trying to make a function that fixes the neighboring node problem
     */
-    void CalcLowestBat(uint8_t lowestBat, double remainingBattery, double initialJoules);
+    void CalcLowestBat(double remainingBattery, double initialJoules);
     /**
      * \brief Print some information about the packet.
      * \param os output stream
@@ -554,7 +554,7 @@ class WDsrOptionRrepHeader : public WDsrOptionHeader
     /**
     * \brief Trying to make a function that fixes the neighboring node problem
     */
-    void CalcLowestBat(uint8_t lowestBat, double remainingBattery, double initialJoules);
+    void CalcLowestBat(double remainingBattery, double initialJoules);
     /**
      * \brief Print some information about the packet.
      * \param os output stream

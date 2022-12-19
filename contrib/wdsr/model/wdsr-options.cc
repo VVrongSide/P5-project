@@ -646,6 +646,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
     bool dupRequest = false; // initialize the duplicate request check value
     if (ttl)
     {
+        NS_LOG_DEBUG("if ttl");
         // if the ttl value is not 0, then this request will be forwarded, then we need to
         // save it in the source entry
         dupRequest = wdsr->FindSourceEntry(sourceAddress, targetAddress, requestId);
@@ -656,16 +657,17 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
      * 2. if our address is already in the path list, ignore it
      * 3. otherwise process further
      */
-
-    if (dupRequest)
+    NS_LOG_DEBUG("dupRequest : "<<dupRequest<<" requestId :"<<requestId);
+    /*if (dupRequest)
     {
         // We have received this same route request before, not forwarding it now
         NS_LOG_LOGIC("Duplicate request. Drop!");
+        NS_LOG_DEBUG("Duplicate request. Drop!");
         m_dropTrace(packet); // call drop trace
         return 0;
-    }
+    }*/
 
-    else if (CheckDuplicates(ipv4Address, nodeList))
+    if (CheckDuplicates(ipv4Address, nodeList))
     {
         /*
          * if the route contains the node address already, drop the request packet
@@ -676,17 +678,21 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
     }
     else
     {
+        NS_LOG_DEBUG("its not a duplicate:");
         // A node ignores all RREQs received from any node in its blacklist
         WDsrRouteCacheEntry toPrev;
         bool isRouteInCache = wdsr->LookupRoute(targetAddress, toPrev);
         WDsrRouteCacheEntry::IP_VECTOR ip =
             toPrev.GetVector(); // The route from our own route cache to dst
-        toPrev.SetLowestBat(rreq.GetLowestBat());
+        if (source != ipv4Address){
+            toPrev.SetLowestBat(rreq.GetLowestBat());    
+        }
         toPrev.SetTxCost(rreq.GetTxCost());        
         PrintVector(ip);
         std::vector<Ipv4Address> saveRoute(nodeList);
         PrintVector(saveRoute);
         bool areThereDuplicates = IfDuplicates(ip, saveRoute);
+        NS_LOG_DEBUG("Are there duplicates: "<<(bool) areThereDuplicates);
         /*
          *  When the reverse route is created or updated, the following actions on the route are
          * also carried out:
@@ -704,6 +710,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                                                      << mainVector[0]);
         if (targetAddress == ipv4Address)
         {
+            NS_LOG_DEBUG("We are at targetAddress");
             Ipv4Address nextHop; // Declare the next hop address to use
             if (nodeList.size() == 1)
             {
@@ -718,6 +725,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             }
             else
             {
+                NS_LOG_DEBUG("We are not at targetAddress");
                 std::vector<Ipv4Address> changeRoute(nodeList);
                 changeRoute.push_back(ipv4Address); // push back our own address
                 m_finalRoute.clear();               // get a clear route vector
@@ -746,13 +754,10 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             wdsrRoutingHeader.SetDestId(GetIDfromIP(replyDst));
             // Set the route for route reply
             SetRoute(nextHop, ipv4Address);
-            
+            uint16_t hops = m_finalRoute.size();
             
             uint8_t length =
                 rrep.GetLength(); // Get the length of the rrep header excluding the type header
-           
-            uint8_t lowestBat =
-                rrep.GetLowestBat(); // Get the length of the rrep header excluding the type header
             uint32_t nodeID =
                 node->GetId();
             uint8_t txCost = 
@@ -764,12 +769,13 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
             NS_LOG_DEBUG("**************************************");
             NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-            
-            rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
-                               /*remainingEnergy=*/remainingEnergy[nodeID],
-                               /*initialEnergy=*/initialEnergy);
+            NS_LOG_FUNCTION(this<<" Calculating lowestBat:");
+            if (source != ipv4Address){
+                rrep.CalcLowestBat(/*remainingEnergy=*/remainingEnergy[nodeID],
+                                    /*initialEnergy=*/initialEnergy);
+            }
             NS_LOG_DEBUG("txCost before setting: "<<(int)txCost);
-            rrep.SetTxCost(txCost+placeholder);
+            rrep.SetTxCost(hops);
             NS_LOG_DEBUG("txCost after setting: "<<(int)rrep.GetTxCost());
             NS_LOG_DEBUG("**************************************");
             NS_LOG_DEBUG("****************************************************************************");
@@ -787,6 +793,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             PrintVector(m_finalRoute);
             if (ReverseRoutes(m_finalRoute))
             {
+                NS_LOG_DEBUG("if ReverseRoutes(m_finalRoute)");
                 PrintVector(m_finalRoute);
                 Ipv4Address dst = m_finalRoute.back();
                 bool addRoute = false;
@@ -820,9 +827,11 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
                 if (addRoute)
                 {
+                    NS_LOG_DEBUG("If a route is added");
                     /*
                      * Found a route to the dst, construct the source route option header
                      */
+
                     WDsrOptionSRHeader sourceRoute;
                     NS_LOG_DEBUG("The route length " << m_finalRoute.size());
                     sourceRoute.SetNodesAddress(m_finalRoute);
@@ -879,6 +888,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
          */
         else if (isRouteInCache && !areThereDuplicates)
         {
+            NS_LOG_DEBUG("isRouteInCache && !areThereDuplicates");
             m_finalRoute.clear(); // Clear the final route vector
             /**
              * push back the intermediate node address from the source to this node
@@ -902,9 +912,11 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
              */
             bool addRoute = false;
             std::vector<Ipv4Address> reverseRoute(m_finalRoute);
-
+            NS_LOG_DEBUG("Checking m_finalRoute, size is: "<<m_finalRoute.size());
+            PrintVector(m_finalRoute);
             if (ReverseRoutes(reverseRoute))
             {
+                NS_LOG_DEBUG("if (ReverseRoutes(reverseRoute))");
                 saveRoute.push_back(ipv4Address);
                 ReverseRoutes(saveRoute);
                 Ipv4Address dst = saveRoute.back();
@@ -931,14 +943,20 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                     NS_LOG_DEBUG("ActiveRouteTimeout: "<<ActiveRouteTimeout);
                     NS_LOG_DEBUG("Added route with lowestBat: "<<(int) rreq.GetLowestBat());
                     NS_LOG_DEBUG("Added route with txCost: "<<(int) rreq.GetTxCost());          
+                    
                     addRoute = wdsr->AddRoute(toSource);
+
                 }
 
                 if (addRoute)
                 {
+                    NS_LOG_DEBUG("If route is added:");
                     NS_LOG_LOGIC("We have added the route and search send buffer for packet with "
                                  "destination "
                                  << dst);
+                     NS_LOG_DEBUG(
+                                this<<" We have added the route and search send buffer for packet with destination "
+                                << dst);
                     /*
                      * Found a route the dst, construct the source route option header
                      */
@@ -1010,14 +1028,11 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             wdsrRoutingHeader.SetNextHeader(protocol);
             wdsrRoutingHeader.SetMessageType(1);
             wdsrRoutingHeader.SetSourceId(GetIDfromIP(realSource));
-            wdsrRoutingHeader.SetDestId(255);
+            wdsrRoutingHeader.SetDestId(GetIDfromIP(targetAddress));
 
             
             uint8_t length =
                 rrep.GetLength(); // Get the length of the rrep header excluding the type header
-           
-            uint8_t lowestBat =
-                rrep.GetLowestBat(); // Get the length of the rrep header excluding the type header
             uint32_t nodeID =
                 node->GetId();
             uint8_t txCost = 
@@ -1029,12 +1044,13 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
             NS_LOG_DEBUG("**************************************");
             NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-            
-            rrep.CalcLowestBat(/*lowestBat=*/lowestBat,
-                               /*remainingEnergy=*/remainingEnergy[nodeID],
-                               /*initialEnergy=*/initialEnergy);
+            NS_LOG_FUNCTION(this<<" Calculating lowestBat:");
+            if (source != ipv4Address){
+                rrep.CalcLowestBat( /*remainingEnergy=*/remainingEnergy[nodeID],
+                                    /*initialEnergy=*/initialEnergy);
+            }
             NS_LOG_DEBUG("txCost before setting: "<<(int)txCost);
-            rrep.SetTxCost(txCost+placeholder);
+            rrep.SetTxCost(hops);
             NS_LOG_DEBUG("txCost after setting: "<<(int)rrep.GetTxCost());
             
             NS_LOG_DEBUG("**************************************");
@@ -1055,6 +1071,7 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
          */
         else
         {
+            NS_LOG_DEBUG("This is not the target");
             mainVector.push_back(ipv4Address);
             NS_ASSERT(mainVector.front() == source);
             NS_LOG_DEBUG("Print out the main vector");
@@ -1079,8 +1096,6 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                     uint8_t length =
                         rreq.GetLength(); // Get the length of the rreq header excluding the type header
                    
-                    uint8_t lowestBat =
-                        rreq.GetLowestBat(); // Get the length of the rreq header excluding the type header
                     uint32_t nodeID =
                         node->GetId();
                     uint8_t txCost = 
@@ -1092,11 +1107,13 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
                     NS_LOG_DEBUG("**************************************");
                     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-                    rreq.CalcLowestBat(/*lowestBat=*/lowestBat,
-                                       /*remainingEnergy=*/remainingEnergy[nodeID],
-                                       /*initialEnergy=*/initialEnergy);
+                    NS_LOG_FUNCTION(this<<" Calculating lowestBat:");
+                    if (source != ipv4Address){
+                        rreq.CalcLowestBat(/*remainingEnergy=*/remainingEnergy[nodeID],
+                                           /*initialEnergy=*/initialEnergy);
+                    }
                     rreq.SetTxCost(txCost+placeholder);
-                    
+                        
                     NS_LOG_DEBUG("**************************************");
                     NS_LOG_DEBUG("****************************************************************************");
                     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\] Serialization of RREQ");
@@ -1120,8 +1137,6 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
                     uint8_t length =
                         rreq.GetLength(); // Get the length of the rreq header excluding the type header
                    
-                    uint8_t lowestBat =
-                        rreq.GetLowestBat(); // Get the length of the rreq header excluding the type header
                     uint32_t nodeID =
                         node->GetId();
                     uint8_t txCost = 
@@ -1133,10 +1148,11 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
                     NS_LOG_DEBUG("**************************************");
                     NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-                    
-                    rreq.CalcLowestBat(/*lowestBat=*/lowestBat,
-                                       /*remainingEnergy=*/remainingEnergy[nodeID],
-                                       /*initialEnergy=*/initialEnergy);
+                    NS_LOG_FUNCTION(this<<" Calculating lowestBat:");
+                    if (source != ipv4Address){
+                        rreq.CalcLowestBat(/*remainingEnergy=*/remainingEnergy[nodeID],
+                                           /*initialEnergy=*/initialEnergy);
+                    }
                     rreq.SetTxCost(txCost+placeholder);
                     
                     NS_LOG_DEBUG("**************************************");
@@ -1154,9 +1170,6 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
             
                 uint8_t length =
                     rreq.GetLength(); // Get the length of the rreq header excluding the type header
-               
-                uint8_t lowestBat =
-                    rreq.GetLowestBat(); // Get the length of the rreq header excluding the type header
                 uint32_t nodeID =
                     node->GetId();
                 uint8_t txCost = 
@@ -1168,10 +1181,11 @@ WDsrOptionRreq::Process(Ptr<Packet> packet,
 
                 NS_LOG_DEBUG("**************************************");
                 NS_LOG_DEBUG("\[Node "<<node->GetId()<<"\]");
-                
-                rreq.CalcLowestBat(/*lowestBat=*/lowestBat,
-                                   /*remainingEnergy=*/remainingEnergy[nodeID],
-                                   /*initialEnergy=*/initialEnergy);
+                NS_LOG_FUNCTION(this<<" Calculating lowestBat:");
+                if (source != ipv4Address){
+                    rreq.CalcLowestBat(/*remainingEnergy=*/remainingEnergy[nodeID],
+                                       /*initialEnergy=*/initialEnergy);
+                }
                 rreq.SetTxCost(txCost+placeholder);
                 NS_LOG_DEBUG("**************************************");
                 NS_LOG_DEBUG("****************************************************************************");
@@ -1307,15 +1321,18 @@ WDsrOptionRrep::Process(Ptr<Packet> packet,
         NS_LOG_DEBUG(">> 3");
         if (wdsr->IsLinkCache())
         {
+            NS_LOG_DEBUG("__Is link cache:");
             NS_LOG_DEBUG("Added route link with lowestBat: "<<(int) rrep.GetLowestBat());
-            NS_LOG_DEBUG("Added route link with txCost: "<<(int) rrep.GetTxCost());          
+            NS_LOG_DEBUG("Added route link with txCost: "<<(int) rrep.GetTxCost());
+            NS_LOG_DEBUG("Added route link with ActiveRouteTimeout: "<<ActiveRouteTimeout);         
             addRoute = wdsr->AddRoute_Link(nodeList, ipv4Address);
         }
         else
         {
-            NS_LOG_DEBUG("ActiveRouteTimeout: "<<ActiveRouteTimeout);
+            NS_LOG_DEBUG("__Is path rout:");
             NS_LOG_DEBUG("Added route with lowestBat: "<<(int) rrep.GetLowestBat());
             NS_LOG_DEBUG("Added route with txCost: "<<(int) rrep.GetTxCost());
+            NS_LOG_DEBUG("Added route with ActiveRouteTimeout: "<<ActiveRouteTimeout);
             addRoute = wdsr->AddRoute(toDestination);
         }
 
