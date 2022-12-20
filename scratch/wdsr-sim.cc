@@ -336,7 +336,7 @@ main(int argc, char* argv[])
     InternetStackHelper internet;
     DsrMainHelper dsrMain;
     DsrHelper dsrH;
-    dsrH.Set("CacheType", StringValue("PathCache"));
+    // dsrH.Set("CacheType", StringValue("PathCache"));
 
     WDsrMainHelper wdsrMain;
     WDsrHelper wdsr;

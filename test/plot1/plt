@@ -1,0 +1,16 @@
+set terminal pdfcairo enhanced 
+set output "gamma-plot.pdf"
+set title "Gamma test"
+set xlabel "Gamma in percent (%)"
+set ylabel "Time of first depletion (seconds)"
+set xtics 10
+set mxtics 2
+set mytics 2
+set style line 81 lt 0 lc rgb "#808080" lw 0.5
+set grid xtics
+set grid ytics
+set grid mxtics
+set grid mytics
+set grid back ls 81
+plot "xy.dat" using 1:2 with lines notitle
+
